@@ -4,11 +4,8 @@ use std::os::windows::process::CommandExt;
 mod impresora;
 use impresora::{DatosFactura, imprimir_factura, imprimir_precuenta};
 
-
 use local_ip_address::local_ip;
 use hostname::get;
-
-
 
 const CREATE_NO_WINDOW: u32 = 0x08000000;
 
@@ -39,14 +36,8 @@ fn cmd_listar_impresoras() -> Vec<serde_json::Value> {
 
 // ── Verifica si FastAPI ya está corriendo ─────────────────────
 fn backend_esta_activo() -> bool {
-    // Intenta conectarse al healthcheck, si responde ya está up
     std::net::TcpStream::connect("127.0.0.1:8000").is_ok()
 }
-
-
-
-
-
 
 #[tauri::command]
 fn obtener_info_red() -> Result<serde_json::Value, String> {
@@ -67,13 +58,6 @@ fn obtener_info_red() -> Result<serde_json::Value, String> {
     }))
 }
 
-
-
-
-
-
-
-
 // ── ENTRY POINT ───────────────────────────────────────────────
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -88,19 +72,28 @@ pub fn run() {
             obtener_info_red,
         ])
         .setup(|app| {
-            // Solo levanta el backend si no hay nadie escuchando en el puerto
+            let raiz = std::env::current_exe()
+                .unwrap()
+                .parent()
+                .unwrap()
+                .to_path_buf();
+
+            let python  = raiz.join("runtime").join("python").join("python.exe");
+            let backend = raiz.join("runtime").join("backend");
+
+            // ── LOG DE DEBUG ──────────────────────────────────────
+            let log_content = format!(
+                "current_exe: {:?}\nraiz: {:?}\npython: {:?} existe={}\nbackend: {:?} existe={}\nbackend_activo={}\n",
+                std::env::current_exe().unwrap(),
+                raiz,
+                python, python.exists(),
+                backend, backend.exists(),
+                backend_esta_activo(),
+            );
+            std::fs::write(raiz.join("poskey_debug.log"), &log_content).ok();
+            // ─────────────────────────────────────────────────────
+
             if !backend_esta_activo() {
-                let raiz = std::env::current_dir().unwrap();
-
-                let python = raiz
-                    .join("runtime")
-                    .join("python")
-                    .join("python.exe");
-
-                let backend = raiz
-                    .join("runtime")
-                    .join("backend");
-
                 Command::new(&python)
                     .creation_flags(CREATE_NO_WINDOW)
                     .arg("-m")
@@ -113,8 +106,6 @@ pub fn run() {
                     .current_dir(&backend)
                     .spawn()
                     .expect("No se pudo iniciar FastAPI");
-
-                println!("Backend iniciado.");
             } else {
                 println!("Backend ya estaba activo, reutilizando.");
             }
