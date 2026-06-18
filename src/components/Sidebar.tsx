@@ -1,7 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { api } from "../services/api";
-import useMobile from "../hooks/useMobile";
 
 
 
@@ -38,10 +37,7 @@ useEffect(() => {
 
 
 
-const isMobile = useMobile();
-if (isMobile) {
-  return null;
-}
+
 
   return (
     <div
@@ -181,7 +177,7 @@ if (isMobile) {
           padding: "16px 12px 4px",
         }}
       >
-        v1.0 · Operación local
+        v1.0 · by josiDev
       </div>
     </div>
   );

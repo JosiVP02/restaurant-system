@@ -55,6 +55,9 @@ export default function ActividadMesaModal({ cuentaId, onClose }: Props) {
 
   useEffect(() => { cargar(); }, []);
 
+
+
+  
   // ── Edición ──────────────────────────────────────────────────────────────
 
   function iniciarEdicion(item: Actividad) {

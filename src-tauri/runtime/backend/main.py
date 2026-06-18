@@ -843,3 +843,46 @@ def health():
         "status": "ok",
         "nombre": "POSKEY"
     }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+import os
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+MOBILE_DIST = os.path.join(
+    BASE_DIR,
+    "static",
+    "dist"
+)
+
+print("MOBILE_DIST =", MOBILE_DIST)
+print("EXISTE =", os.path.isdir(MOBILE_DIST))
+
+if os.path.isdir(MOBILE_DIST):
+    app.mount(
+        "/mobile/assets",
+        StaticFiles(directory=os.path.join(MOBILE_DIST, "assets")),
+        name="mobile-assets",
+    )
+
+    @app.get("/mobile")
+    @app.get("/mobile/{full_path:path}")
+    async def serve_mobile_spa(full_path: str = ""):
+        candidato = os.path.join(MOBILE_DIST, full_path)
+        if full_path and os.path.isfile(candidato):
+            return FileResponse(candidato)
+        return FileResponse(os.path.join(MOBILE_DIST, "index.html"))

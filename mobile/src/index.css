@@ -1,0 +1,40 @@
+/* src/index.css */
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: #f1f5f3;
+  color: #1f2937;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: contain;
+}
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+input,
+textarea,
+select,
+button {
+  font-family: inherit;
+}
+
+/* Evita el zoom automático de iOS al enfocar inputs */
+input,
+textarea,
+select {
+  font-size: 16px;
+}
+
+button {
+  -webkit-tap-highlight-color: transparent;
+}
+
+a {
+  -webkit-tap-highlight-color: transparent;
+}

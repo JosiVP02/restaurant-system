@@ -88,7 +88,7 @@ async function transferir() {
       }
     },
   });
-}
+} 
 
 
 
@@ -98,7 +98,16 @@ async function transferir() {
 
   useEffect(() => {
     cargarMesas();
-  }, []);
+
+    const intervalo = setInterval(() => {
+      console.log("REFRESCANDO MESAS");
+        cargarMesas(); 
+        }, 2000); 
+        return () => clearInterval(intervalo); 
+    }, [ cargarMesas]);
+
+ 
+
 
   return (
     <div

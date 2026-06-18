@@ -171,13 +171,18 @@ async function obtenerCuenta() {
 
 
 useEffect(() => {
-  if (mesaId) {
+  if (!mesaId) return;
+
+  obtenerCuenta();
+  cargarMesa();
+
+  const intervalo = setInterval(() => {
     obtenerCuenta();
-    cargarMesa();  // ← esta línea
-  }
+  }, 2000);
+
+  return () => clearInterval(intervalo);
+
 }, [mesaId]);
-
-
 
 
 

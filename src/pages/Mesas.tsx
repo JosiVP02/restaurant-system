@@ -357,9 +357,18 @@ async function eliminarMesa(mesa: MesaLocal) {
     }
   }
 
-  useEffect(() => {
+useEffect(() => {
+  cargarMesas();
+
+  const intervalo = setInterval(() => {
     cargarMesas();
-  }, [location.pathname]);
+  }, 2000);
+
+  return () => clearInterval(intervalo);
+
+}, [location.pathname]);
+
+
 
   const onMouseDown =
     useCallback(
