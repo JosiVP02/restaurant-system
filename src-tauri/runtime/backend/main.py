@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends, WebSocket, WebSocketDisconnect
 from database import SessionLocal
 from models import Producto, Mesa, Cuenta, DetalleCuenta, Pago, Orden, DetalleOrden, Configuracion
 from schemas import (
@@ -8,20 +8,16 @@ from schemas import (
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime, date, timedelta
 from sqlalchemy import func
-from fastapi import FastAPI, Depends
 from sqlalchemy.orm import Session
-
 from database import Base, engine
 from models import *
-
-
 from database import inicializar_bd
+import asyncio
+import json
 
 inicializar_bd()
 
 app = FastAPI(title="Restaurant System API")
-
-
 
 app.add_middleware(
     CORSMiddleware,
@@ -30,6 +26,64 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+
+from mantenimiento import router as mantenimiento_router
+app.include_router(mantenimiento_router)
+
+
+# ═══════════════════════════════════════════════════════════
+#  WEBSOCKET MANAGER
+# ═══════════════════════════════════════════════════════════
+
+class ConnectionManager:
+    def __init__(self):
+        self.active: list[WebSocket] = []
+
+    async def connect(self, ws: WebSocket):
+        await ws.accept()
+        self.active.append(ws)
+
+    def disconnect(self, ws: WebSocket):
+        if ws in self.active:
+            self.active.remove(ws)
+
+    async def broadcast(self, evento: str):
+        msg = json.dumps({"evento": evento})
+        muertos = []
+        for ws in self.active:
+            try:
+                await ws.send_text(msg)
+            except Exception:
+                muertos.append(ws)
+        for ws in muertos:
+            self.active.remove(ws)
+
+manager = ConnectionManager()
+
+def broadcast_sync(evento: str):
+    print(f"[WS] broadcast_sync llamado: {evento}", flush=True)
+    try:
+        loop = asyncio.get_running_loop()
+        loop.create_task(manager.broadcast(evento))
+    except RuntimeError:
+        # No hay loop corriendo en este hilo
+        try:
+            loop = asyncio.new_event_loop()
+            loop.run_until_complete(manager.broadcast(evento))
+            loop.close()
+        except Exception as e:
+            print(f"[WS] Error en broadcast_sync: {e}", flush=True)
+
+@app.websocket("/ws")
+async def websocket_endpoint(ws: WebSocket):
+    await manager.connect(ws)
+    try:
+        while True:
+            await ws.receive_text()
+    except WebSocketDisconnect:
+        manager.disconnect(ws)
 
 
 # ── util ─────────────────────────────────────────────────────────────────────
@@ -47,24 +101,16 @@ def obtener_o_crear_cuenta(db, mesa_id: int) -> Cuenta:
 
 
 def rango_turno(fecha_str: str, hora_inicio: str, hora_cierre: str):
-    """
-    Dado '2026-06-14', '18:00', '02:00'
-    devuelve (2026-06-14 18:00:00, 2026-06-15 02:00:59)
-    Si hora_cierre > hora_inicio asume mismo día.
-    """
     fecha = datetime.strptime(fecha_str, "%Y-%m-%d")
     hi, mi = map(int, hora_inicio.split(":"))
     hc, mc = map(int, hora_cierre.split(":"))
-
     inicio = fecha.replace(hour=hi, minute=mi, second=0, microsecond=0)
-
-    if hc <= hi:   # cierra pasada medianoche
+    if hc <= hi:
         fin = (fecha + timedelta(days=1)).replace(
             hour=hc, minute=mc, second=59, microsecond=999999
         )
     else:
         fin = fecha.replace(hour=hc, minute=mc, second=59, microsecond=999999)
-
     return inicio, fin
 
 
@@ -127,7 +173,9 @@ def crear_mesa(mesa: MesaCreate):
     db = SessionLocal()
     m = Mesa(nombre=mesa.nombre, forma=mesa.forma or "cuadrada",
              capacidad=mesa.capacidad or 4, x=mesa.x or 80, y=mesa.y or 80)
-    db.add(m); db.commit(); db.refresh(m); db.close(); return m
+    db.add(m); db.commit(); db.refresh(m); db.close()
+    broadcast_sync("mesas_actualizadas")
+    return m
 
 @app.get("/mesas")
 def obtener_mesas():
@@ -146,7 +194,9 @@ def editar_mesa(mesa_id: int, datos: MesaUpdate):
     m = db.query(Mesa).filter(Mesa.id == mesa_id).first()
     if not m: db.close(); return {"error": "No encontrada"}
     m.nombre = datos.nombre; m.forma = datos.forma; m.capacidad = datos.capacidad
-    db.commit(); db.refresh(m); db.close(); return m
+    db.commit(); db.refresh(m); db.close()
+    broadcast_sync("mesas_actualizadas")
+    return m
 
 @app.put("/mesas/{mesa_id}/posicion")
 def actualizar_posicion(mesa_id: int, posicion: MesaUpdatePosition):
@@ -154,7 +204,8 @@ def actualizar_posicion(mesa_id: int, posicion: MesaUpdatePosition):
     m = db.query(Mesa).filter(Mesa.id == mesa_id).first()
     if not m: db.close(); return {"error": "No encontrada"}
     m.x = posicion.x; m.y = posicion.y
-    db.commit(); db.refresh(m); db.close(); return m
+    db.commit(); db.refresh(m); db.close()
+    return m
 
 @app.delete("/mesas/{mesa_id}")
 def eliminar_mesa(mesa_id: int):
@@ -162,6 +213,7 @@ def eliminar_mesa(mesa_id: int):
     m = db.query(Mesa).filter(Mesa.id == mesa_id).first()
     if not m: db.close(); return {"error": "No encontrada"}
     db.delete(m); db.commit(); db.close()
+    broadcast_sync("mesas_actualizadas")
     return {"message": "Mesa eliminada"}
 
 @app.post("/mesas/{mesa_id}/liberar")
@@ -173,6 +225,7 @@ def liberar_mesa(mesa_id: int):
     if c: c.estado = "ANULADA"
     m.estado = "LIBRE"
     db.commit(); db.close()
+    broadcast_sync("mesas_actualizadas")
     return {"message": "Mesa liberada"}
 
 
@@ -191,7 +244,9 @@ def abrir_cuenta(mesa_id: int):
     final = db.query(Cuenta).filter(
         Cuenta.mesa_id == mesa_id, Cuenta.estado == "ABIERTA"
     ).order_by(Cuenta.id.asc()).first()
-    db.close(); return final
+    db.close()
+    broadcast_sync("mesas_actualizadas")
+    return final
 
 @app.get("/cuentas/mesa/{mesa_id}")
 def obtener_cuenta_mesa(mesa_id: int):
@@ -258,6 +313,8 @@ def agregar_productos(cuenta_id: int, datos: AgregarProductosCuenta):
         m = db.query(Mesa).filter(Mesa.id == c.mesa_id).first()
         if m: m.estado = "OCUPADA"
     db.commit(); db.close()
+    broadcast_sync("orden_nueva")
+    broadcast_sync("mesas_actualizadas")
     return {"message": "Orden creada", "orden_id": orden_id}
 
 @app.post("/cuentas/{cuenta_id}/agregar-directo")
@@ -282,37 +339,30 @@ def agregar_directo(cuenta_id: int, datos: AgregarProductosCuenta):
         m = db.query(Mesa).filter(Mesa.id == c.mesa_id).first()
         if m: m.estado = "OCUPADA"
     db.commit(); db.close()
+    broadcast_sync("cuenta_actualizada")
+    broadcast_sync("mesas_actualizadas")
     return {"message": "Productos agregados"}
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  COBRO — guarda subtotal/servicio por separado y fecha_cierre en cuenta
-# ─────────────────────────────────────────────────────────────────────────────
 @app.post("/cuentas/{cuenta_id}/cerrar")
 def cerrar_cuenta(cuenta_id: int, metodo: str, aplicar_servicio: bool = True):
     db = SessionLocal()
     cuenta = db.query(Cuenta).filter(Cuenta.id == cuenta_id).first()
     if not cuenta: db.close(); return {"error": "Cuenta no encontrada"}
-
     detalles = db.query(DetalleCuenta).filter(DetalleCuenta.cuenta_id == cuenta_id).all()
     subtotal = sum(d.cantidad * d.precio_unitario for d in detalles)
     servicio = round(subtotal * 0.10, 2) if aplicar_servicio else 0.0
     total    = round(subtotal + servicio, 2)
-
     db.add(Pago(cuenta_id=cuenta_id, metodo=metodo,
                 monto=total, subtotal=subtotal, servicio=servicio,
                 fecha=datetime.now()))
-
     cuenta.estado       = "PAGADA"
-    cuenta.fecha_cierre = datetime.now()          # ← crítico para reportes
-
+    cuenta.fecha_cierre = datetime.now()
     m = db.query(Mesa).filter(Mesa.id == cuenta.mesa_id).first()
     if m: m.estado = "LIBRE"
-
     db.commit(); db.close()
+    broadcast_sync("mesas_actualizadas")
     return {"message": "Cuenta cerrada", "subtotal": subtotal,
             "servicio": servicio, "total": total}
-
 
 @app.post("/cuentas/{cuenta_id}/transferir")
 def transferir_cuenta(cuenta_id: int, nueva_mesa_id: int):
@@ -326,6 +376,7 @@ def transferir_cuenta(cuenta_id: int, nueva_mesa_id: int):
     if ma: ma.estado = "LIBRE"
     c.mesa_id = nueva_mesa_id
     db.commit(); db.close()
+    broadcast_sync("mesas_actualizadas")
     return {"message": "Mesa transferida"}
 
 
@@ -335,7 +386,9 @@ def sumar_producto(detalle_id: int):
     db = SessionLocal()
     d = db.query(DetalleCuenta).filter(DetalleCuenta.id == detalle_id).first()
     if not d: db.close(); return {"error": "No encontrado"}
-    d.cantidad += 1; db.commit(); db.close(); return {"message": "OK"}
+    d.cantidad += 1; db.commit(); db.close()
+    broadcast_sync("cuenta_actualizada")
+    return {"message": "OK"}
 
 @app.post("/detalle/{detalle_id}/restar")
 def restar_producto(detalle_id: int):
@@ -344,21 +397,26 @@ def restar_producto(detalle_id: int):
     if not d: db.close(); return {"error": "No encontrado"}
     d.cantidad -= 1
     if d.cantidad <= 0: db.delete(d)
-    db.commit(); db.close(); return {"message": "OK"}
+    db.commit(); db.close()
+    broadcast_sync("cuenta_actualizada")
+    return {"message": "OK"}
 
 @app.delete("/detalle/{detalle_id}")
 def eliminar_producto_cuenta(detalle_id: int):
     db = SessionLocal()
     d = db.query(DetalleCuenta).filter(DetalleCuenta.id == detalle_id).first()
     if not d: db.close(); return {"error": "No encontrado"}
-    db.delete(d); db.commit(); db.close(); return {"message": "Eliminado"}
+    db.delete(d); db.commit(); db.close()
+    broadcast_sync("cuenta_actualizada")
+    return {"message": "Eliminado"}
 
 @app.post("/detalle/{detalle_id}/estado")
 def cambiar_estado_cocina(detalle_id: int, estado: str):
     db = SessionLocal()
     d = db.query(DetalleCuenta).filter(DetalleCuenta.id == detalle_id).first()
     if not d: db.close(); return {"error": "No encontrado"}
-    d.estado = estado; db.commit(); db.close(); return {"message": "OK"}
+    d.estado = estado; db.commit(); db.close()
+    return {"message": "OK"}
 
 
 # ─── detalle orden ────────────────────────────────────────────────────────────
@@ -367,7 +425,9 @@ def cambiar_estado_detalle_orden(detalle_id: int, estado: str):
     db = SessionLocal()
     d = db.query(DetalleOrden).filter(DetalleOrden.id == detalle_id).first()
     if not d: db.close(); return {"error": "No encontrado"}
-    d.estado = estado; db.commit(); db.close(); return {"message": "OK"}
+    d.estado = estado; db.commit(); db.close()
+    broadcast_sync("orden_actualizada")
+    return {"message": "OK"}
 
 @app.put("/detalle-orden/{detalle_id}/cantidad/{cantidad}")
 def editar_cantidad_detalle_orden(detalle_id: int, cantidad: int):
@@ -377,7 +437,9 @@ def editar_cantidad_detalle_orden(detalle_id: int, cantidad: int):
     if d.estado != "PENDIENTE": db.close(); return {"error": "Solo pendientes"}
     if cantidad <= 0: db.delete(d)
     else: d.cantidad = cantidad
-    db.commit(); db.close(); return {"message": "OK"}
+    db.commit(); db.close()
+    broadcast_sync("orden_actualizada")
+    return {"message": "OK"}
 
 @app.put("/detalle-orden/{detalle_id}/observacion")
 def editar_observacion_detalle_orden(detalle_id: int, observacion: str = ""):
@@ -385,7 +447,9 @@ def editar_observacion_detalle_orden(detalle_id: int, observacion: str = ""):
     d = db.query(DetalleOrden).filter(DetalleOrden.id == detalle_id).first()
     if not d: db.close(); return {"error": "No encontrado"}
     if d.estado != "PENDIENTE": db.close(); return {"error": "Solo pendientes"}
-    d.observacion = observacion; db.commit(); db.close(); return {"message": "OK"}
+    d.observacion = observacion; db.commit(); db.close()
+    broadcast_sync("orden_actualizada")
+    return {"message": "OK"}
 
 @app.delete("/detalle-orden/{detalle_id}")
 def eliminar_detalle_orden(detalle_id: int):
@@ -393,7 +457,9 @@ def eliminar_detalle_orden(detalle_id: int):
     d = db.query(DetalleOrden).filter(DetalleOrden.id == detalle_id).first()
     if not d: db.close(); return {"error": "No encontrado"}
     if d.estado != "PENDIENTE": db.close(); return {"error": "Solo pendientes"}
-    db.delete(d); db.commit(); db.close(); return {"message": "Cancelado"}
+    db.delete(d); db.commit(); db.close()
+    broadcast_sync("orden_actualizada")
+    return {"message": "Cancelado"}
 
 
 # ═══════════════════════════════════════════════════════════
@@ -442,8 +508,6 @@ def obtener_configuracion():
         db.add(cfg); db.commit(); db.refresh(cfg)
     db.close(); return cfg
 
-
-
 @app.put("/configuracion")
 def guardar_configuracion(datos: ConfiguracionSchema):
     db = SessionLocal()
@@ -459,40 +523,27 @@ def guardar_configuracion(datos: ConfiguracionSchema):
     cfg.hora_inicio_operacion = datos.hora_inicio_operacion
     cfg.hora_cierre_operacion = datos.hora_cierre_operacion
     cfg.porcentaje_servicio   = datos.porcentaje_servicio
-    # ── IMPRESORA ──
     cfg.impresora_vid         = datos.impresora_vid
     cfg.impresora_pid         = datos.impresora_pid
     db.commit(); db.refresh(cfg); db.close(); return cfg
 
 
-
 # ═══════════════════════════════════════════════════════════
-#  REPORTES DE VENTAS 
+#  REPORTES DE VENTAS
 # ═══════════════════════════════════════════════════════════
 
 def _rango_fechas(fecha_inicio: str, fecha_fin: str, cfg):
-    """
-    Convierte fecha_inicio y fecha_fin en datetimes reales
-    respetando el turno (hora_inicio / hora_cierre).
-    Si hora_cierre < hora_inicio el turno cruza medianoche.
-    """
     h_ini_h, h_ini_m = map(int, cfg.hora_inicio_operacion.split(":"))
     h_fin_h, h_fin_m = map(int, cfg.hora_cierre_operacion.split(":"))
-
     desde = datetime.strptime(fecha_inicio, "%Y-%m-%d").replace(
         hour=h_ini_h, minute=h_ini_m, second=0, microsecond=0
     )
-
     hasta_base = datetime.strptime(fecha_fin, "%Y-%m-%d").replace(
         hour=h_fin_h, minute=h_fin_m, second=59, microsecond=999999
     )
-    # si el turno cruza medianoche, el cierre es al día siguiente
     if h_fin_h < h_ini_h:
         hasta_base += timedelta(days=1)
-
     return desde, hasta_base
-
-
 
 def _pagos_del_turno(db, fi, ff):
     cuentas = db.query(Cuenta).filter(
@@ -504,16 +555,12 @@ def _pagos_del_turno(db, fi, ff):
     pagos = db.query(Pago).filter(Pago.cuenta_id.in_(ids)).all() if ids else []
     return pagos, ids, cuentas
 
-
 def get_db():
     db = SessionLocal()
     try:
         yield db
     finally:
         db.close()
-
-
-        
 
 @app.get("/reportes/resumen")
 def reporte_resumen(
@@ -524,19 +571,11 @@ def reporte_resumen(
     cfg = get_config(db)
     if not cfg:
         return {"error": "Configure el horario en Configuración"}
-    
-
-
-
-
-
 
     fi_str = fecha_inicio or date.today().strftime("%Y-%m-%d")
     ff_str = fecha_fin    or fi_str
-
     fi, ff = _rango_fechas(fi_str, ff_str, cfg)
 
-    # ── cuentas del rango ──
     cuentas = db.query(Cuenta).filter(
         Cuenta.estado == "PAGADA",
         Cuenta.fecha_cierre >= fi,
@@ -551,7 +590,6 @@ def reporte_resumen(
     total_cuentas  = len(pagos)
     ticket_prom    = total_ventas / total_cuentas if total_cuentas else 0
 
-    # ── métodos ──
     metodos: dict = {}
     for p in pagos:
         if p.metodo not in metodos:
@@ -560,7 +598,6 @@ def reporte_resumen(
         metodos[p.metodo]["subtotal"] += p.subtotal
         metodos[p.metodo]["servicio"] += p.servicio
 
-    # ── top productos ──
     top = []
     if ids:
         rows = (
@@ -577,7 +614,6 @@ def reporte_resumen(
         )
         top = [{"nombre": r.nombre, "cantidad": int(r.qty), "total": float(r.monto)} for r in rows]
 
-    # ── ventas por hora y por día ──
     pago_by_id   = {p.cuenta_id: p for p in pagos}
     ventas_hora: dict = {}
     ventas_dia:  dict = {}
@@ -599,19 +635,14 @@ def reporte_resumen(
         "total_cuentas":   total_cuentas,
         "ticket_promedio": round(ticket_prom, 2),
         "metodos_pago": [
-            {
-                "metodo":   k,
-                "monto":    round(v["monto"], 2),
-                "subtotal": round(v["subtotal"], 2),
-                "servicio": round(v["servicio"], 2),
-            }
+            {"metodo": k, "monto": round(v["monto"], 2),
+             "subtotal": round(v["subtotal"], 2), "servicio": round(v["servicio"], 2)}
             for k, v in metodos.items()
         ],
         "top_productos":   top,
         "ventas_por_hora": [{"hora": k, "monto": round(v, 2)} for k, v in sorted(ventas_hora.items())],
         "ventas_por_dia":  [{"dia": k,  "monto": round(v, 2)} for k, v in sorted(ventas_dia.items())],
     }
-
 
 @app.get("/reportes/cuentas")
 def reporte_cuentas(
@@ -627,7 +658,6 @@ def reporte_cuentas(
 
     fi_str = fecha_inicio or date.today().strftime("%Y-%m-%d")
     ff_str = fecha_fin    or fi_str
-
     fi, ff = _rango_fechas(fi_str, ff_str, cfg)
 
     q = (
@@ -658,26 +688,14 @@ def reporte_cuentas(
             "total":          round(pago.monto, 2)    if pago else 0,
         })
 
-    return {
-        "total":      total,
-        "pagina":     pagina,
-        "por_pagina": por_pagina,
-        "cuentas":    resultado,
-    }
+    return {"total": total, "pagina": pagina, "por_pagina": por_pagina, "cuentas": resultado}
 
 
 # ═══════════════════════════════════════════════════════════
 #  CIERRE DE TURNO
-#  No guarda nada — es una consulta pura sobre los pagos
-#  del turno de la fecha seleccionada.
-#  El cajero ingresa el monto que había en caja al abrir,
-#  el sistema calcula todo lo demás.
 # ═══════════════════════════════════════════════════════════
 @app.get("/cierre/calcular")
-def calcular_cierre(
-    fecha: str,                    # "2026-06-14"
-    monto_apertura: float = 0,     # efectivo inicial que tenía la caja
-):
+def calcular_cierre(fecha: str, monto_apertura: float = 0):
     db  = SessionLocal()
     cfg = get_config(db)
     if not cfg:
@@ -686,22 +704,14 @@ def calcular_cierre(
     fi, ff = rango_turno(fecha, cfg.hora_inicio_operacion, cfg.hora_cierre_operacion)
     pagos, ids, cuentas = _pagos_del_turno(db, fi, ff)
 
-    # ── totales por método ────────────────────────────────
     total_efectivo = sum(p.monto for p in pagos if p.metodo == "Efectivo")
     total_tarjeta  = sum(p.monto for p in pagos if p.metodo == "Tarjeta")
     total_sinpe    = sum(p.monto for p in pagos if p.metodo == "SINPE")
     total_ventas   = total_efectivo + total_tarjeta + total_sinpe
-
-    # ── servicio: suma de lo que SÍ se cobró ─────────────
-    # No se calcula del total; viene guardado por cuenta
     total_servicio = sum(p.servicio for p in pagos)
     total_subtotal = sum(p.subtotal for p in pagos)
+    caja_esperada  = monto_apertura + total_efectivo
 
-    # ── arqueo de caja ────────────────────────────────────
-    # Caja esperada = lo que había + ventas en efectivo del turno
-    caja_esperada = monto_apertura + total_efectivo
-
-    # ── lista de cuentas del turno ────────────────────────
     pago_by_id = {p.cuenta_id: p for p in pagos}
     detalle_cuentas = []
     for c in sorted(cuentas, key=lambda x: x.fecha_cierre or datetime.min):
@@ -717,7 +727,6 @@ def calcular_cierre(
             "total":        pago.monto    if pago else 0,
         })
 
-    # ── top productos del turno ───────────────────────────
     top = []
     if ids:
         rows = (
@@ -737,137 +746,68 @@ def calcular_cierre(
         "fecha":           fecha,
         "turno_inicio":    fi.strftime("%Y-%m-%d %H:%M"),
         "turno_fin":       ff.strftime("%Y-%m-%d %H:%M"),
-        # ventas
         "total_ventas":    round(total_ventas, 2),
         "total_subtotal":  round(total_subtotal, 2),
         "total_servicio":  round(total_servicio, 2),
         "total_cuentas":   len(cuentas),
         "ticket_promedio": round(total_ventas / len(cuentas), 2) if cuentas else 0,
-        # por método
         "total_efectivo":  round(total_efectivo, 2),
         "total_tarjeta":   round(total_tarjeta, 2),
         "total_sinpe":     round(total_sinpe, 2),
-        # arqueo
         "monto_apertura":  round(monto_apertura, 2),
         "caja_esperada":   round(caja_esperada, 2),
-        # detalle
         "top_productos":   top,
         "cuentas":         detalle_cuentas,
     }
 
 
-
-
-
-
-
-
-
-
-
-
-
-
+# ═══════════════════════════════════════════════════════════
+#  FACTURAS
+# ═══════════════════════════════════════════════════════════
 @app.get("/facturas/{cuenta_id}")
 def obtener_factura(cuenta_id: int):
     db = SessionLocal()
-
-    cuenta = db.query(Cuenta).filter(
-        Cuenta.id == cuenta_id
-    ).first()
-
+    cuenta = db.query(Cuenta).filter(Cuenta.id == cuenta_id).first()
     if not cuenta:
-        db.close()
-        return {"error": "Cuenta no encontrada"}
-
-    mesa = db.query(Mesa).filter(
-        Mesa.id == cuenta.mesa_id
-    ).first()
-
-    pago = db.query(Pago).filter(
-        Pago.cuenta_id == cuenta_id
-    ).first()
-
+        db.close(); return {"error": "Cuenta no encontrada"}
+    mesa    = db.query(Mesa).filter(Mesa.id == cuenta.mesa_id).first()
+    pago    = db.query(Pago).filter(Pago.cuenta_id == cuenta_id).first()
     detalles = (
-        db.query(
-            Producto.nombre.label("producto"),
-            DetalleCuenta.cantidad,
-            DetalleCuenta.precio_unitario
-        )
-        .join(
-            Producto,
-            Producto.id == DetalleCuenta.producto_id
-        )
-        .filter(
-            DetalleCuenta.cuenta_id == cuenta_id
-        )
-        .all()
+        db.query(Producto.nombre.label("producto"), DetalleCuenta.cantidad, DetalleCuenta.precio_unitario)
+        .join(Producto, Producto.id == DetalleCuenta.producto_id)
+        .filter(DetalleCuenta.cuenta_id == cuenta_id).all()
     )
-
-    productos = []
-
-    for d in detalles:
-        productos.append({
-            "producto": d.producto,
-            "cantidad": d.cantidad,
-            "precio_unitario": d.precio_unitario,
-            "total": round(
-                d.cantidad * d.precio_unitario,
-                2
-            )
-        })
-
+    productos = [{"producto": d.producto, "cantidad": d.cantidad,
+                  "precio_unitario": d.precio_unitario,
+                  "total": round(d.cantidad * d.precio_unitario, 2)} for d in detalles]
     db.close()
-
     return {
-        "id": cuenta.id,
-        "mesa": mesa.nombre if mesa else "",
-        "fecha": cuenta.fecha_cierre,
-        "metodo": pago.metodo if pago else "",
+        "id": cuenta.id, "mesa": mesa.nombre if mesa else "",
+        "fecha": cuenta.fecha_cierre, "metodo": pago.metodo if pago else "",
         "subtotal": pago.subtotal if pago else 0,
         "servicio": pago.servicio if pago else 0,
         "total": pago.monto if pago else 0,
-        "productos": productos
+        "productos": productos,
     }
 
 
-
-
-
-
-
-
+# ═══════════════════════════════════════════════════════════
+#  HEALTH
+# ═══════════════════════════════════════════════════════════
 @app.get("/health")
 def health():
-    return {
-        "status": "ok",
-        "nombre": "POSKEY"
-    }
+    return {"status": "ok", "nombre": "POSKEY"}
 
 
-
-
-
-
-
-
-
-
-
-
-
-
+# ═══════════════════════════════════════════════════════════
+#  ARCHIVOS ESTÁTICOS (MOBILE)
+# ═══════════════════════════════════════════════════════════
 import os
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-
-MOBILE_DIST = os.path.join(
-    BASE_DIR,
-    "static",
-    "dist"
-)
+MOBILE_DIST = os.path.join(BASE_DIR, "static", "dist")
 
 print("MOBILE_DIST =", MOBILE_DIST)
 print("EXISTE =", os.path.isdir(MOBILE_DIST))

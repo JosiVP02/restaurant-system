@@ -12,6 +12,9 @@ import ToastStack from "./Toast";
 import { useToast } from "../hooks/useToast";
 import type { DetalleOrdenActividad, ConfirmState } from "../services";
 
+import { useWebSocket } from "../hooks/useWebSocket";
+
+
 interface Props {
   cuentaId: number;
   onClose: () => void;
@@ -47,18 +50,11 @@ export default function ActividadMesaModal({ cuentaId, onClose }: Props) {
 
 
 
+useWebSocket(["orden_nueva", "orden_actualizada"], cargar);
+
 useEffect(() => {
   cargar();
-
-  const intervalo = setInterval(() => {
-    cargar();
-  }, 2000);
-
-  return () => clearInterval(intervalo);
-
 }, [cargar]);
-
-
 
 
   function iniciarEdicion(item: DetalleOrdenActividad) {

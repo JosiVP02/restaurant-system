@@ -15,7 +15,7 @@ import { useServerGuard, esErrorDeConexion } from "../hooks/useServerGuard";
 import { useToast } from "../hooks/useToast";
 import ToastStack from "../components/Toast";
 import type { Mesa } from "../services";
-
+import { useWebSocket } from "../hooks/useWebSocket";
 
 
 export default function Mesas() {
@@ -55,13 +55,13 @@ export default function Mesas() {
     [navigate, toast]
   );
 
-  useEffect(() => {
-    cargarMesas();
-    // Refresco automático cada 8s para reflejar mesas que otros
-    // meseros ocupan/liberan, sin necesidad de pull-to-refresh.
-    const intervalo = setInterval(() => cargarMesas(), 2000);
-    return () => clearInterval(intervalo);
-  }, [cargarMesas]);
+useEffect(() => {
+  cargarMesas();
+}, [cargarMesas]);
+
+useWebSocket(["mesas_actualizadas"], cargarMesas);
+
+
 
   const libres = mesas.filter((m) => m.estado === "LIBRE").length;
   const ocupadas = mesas.length - libres;

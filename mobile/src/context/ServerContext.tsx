@@ -96,9 +96,12 @@ export function ServerProvider({ children }: { children: ReactNode }) {
     setServerUrlState(null);
   }, []);
 
-  // ── Polling de ítems LISTOS ──────────────────────────────────────────────
+
+
+
+// ── Polling de ítems LISTOS ──────────────────────────────────────────────
   useEffect(() => {
-    if (!serverUrl) return; // no hay servidor configurado aún
+    if (!serverUrl) return;
 
     pedirPermisoNotificaciones();
     inicializarAudioListo();
@@ -121,7 +124,6 @@ export function ServerProvider({ children }: { children: ReactNode }) {
         const listosAhora = items.filter(i => i.estado === "LISTO");
 
         if (primerCargaListosRef.current) {
-          // Primera carga: solo memorizamos, no notificamos
           listosAhora.forEach(i => listosConocidosRef.current.add(i.id));
           primerCargaListosRef.current = false;
           return;
@@ -129,28 +131,54 @@ export function ServerProvider({ children }: { children: ReactNode }) {
 
         listosAhora.forEach(item => {
           if (!listosConocidosRef.current.has(item.id)) {
-            // Este ítem acaba de pasar a LISTO
             notificarListoMesera(item.mesa, `${item.cantidad} × ${item.producto}`);
             reproducirSonidoListo();
             listosConocidosRef.current.add(item.id);
           }
         });
 
-        // Limpia ítems que ya salieron del endpoint (entregados/eliminados)
         const idsActuales = new Set(items.map(i => i.id));
         listosConocidosRef.current.forEach(id => {
           if (!idsActuales.has(id)) listosConocidosRef.current.delete(id);
         });
 
       } catch {
-        // Silencioso — no queremos toasts globales por fallos de red
+        // Silencioso
       }
     }
 
     verificarListos();
-    const intervalo = setInterval(verificarListos, 2000);
-    return () => clearInterval(intervalo);
+
+    const wsUrl = serverUrl.replace(/^http/, "ws") + "/ws";
+    let ws: WebSocket;
+    let reconnectTimeout: ReturnType<typeof setTimeout>;
+    let destroyed = false;
+
+    function conectar() {
+      ws = new WebSocket(wsUrl);
+      ws.onmessage = (e) => {
+        try {
+          const msg = JSON.parse(e.data);
+          if (msg.evento === "orden_actualizada") verificarListos();
+        } catch {}
+      };
+      ws.onclose = () => {
+        if (!destroyed) reconnectTimeout = setTimeout(conectar, 2000);
+      };
+      ws.onerror = () => ws.close();
+    }
+
+    conectar();
+
+    return () => {
+      destroyed = true;
+      clearTimeout(reconnectTimeout);
+      ws?.close();
+    };
   }, [serverUrl]);
+
+
+  
 
   const value = useMemo(
     () => ({ serverUrl, isConfigured: !!serverUrl, setServerUrl, clearServerUrl }),

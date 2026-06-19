@@ -75,9 +75,9 @@ export function imprimirReporteCierre(
   const cajaFinal = resultado.monto_apertura + resultado.total_efectivo;
 
   const metodos = [
-    { nombre: "Efectivo", monto: resultado.total_efectivo, icono: "💵" },
-    { nombre: "Tarjeta", monto: resultado.total_tarjeta, icono: "💳" },
-    { nombre: "SINPE", monto: resultado.total_sinpe, icono: "📱" },
+    { nombre: "Efectivo", monto: resultado.total_efectivo, icono: "" },
+    { nombre: "Tarjeta", monto: resultado.total_tarjeta, icono: "" },
+    { nombre: "SINPE", monto: resultado.total_sinpe, icono: "" },
   ].filter((m) => m.monto > 0);
 
   const filasMetodos = metodos

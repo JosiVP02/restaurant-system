@@ -2,6 +2,8 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { api } from "../services/api";
 import ConfirmModal from "../components/ConfirmModal";
 
+import { useWebSocket } from "../hooks/useWebSocket";
+
 interface OrdenCocina {
   id: number;
   orden_id: number;
@@ -168,12 +170,13 @@ export default function Cocina() {
     });
   }
 
-  useEffect(() => {
-    pedirPermisoNotificaciones();
-    cargarOrdenes();
-    const intervalo = setInterval(cargarOrdenes, 2000);
-    return () => clearInterval(intervalo);
-  }, [cargarOrdenes]);
+useWebSocket(["orden_nueva", "orden_actualizada"], cargarOrdenes);
+
+useEffect(() => {
+  pedirPermisoNotificaciones();
+  cargarOrdenes();
+}, [cargarOrdenes]);
+
 
   const ordenesAgrupadas = ordenes.reduce(
     (acc: Record<number, OrdenAgrupada>, item) => {
@@ -201,7 +204,7 @@ export default function Cocina() {
             👨‍🍳 Cocina
           </h1>
           <p style={{ margin: "4px 0 0", fontSize: 13, color: "#94a3b8" }}>
-            Actualización automática cada 5 segundos
+            Tiempo real vía WebSocket
           </p>
         </div>
 

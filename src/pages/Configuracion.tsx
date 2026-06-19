@@ -3,10 +3,48 @@ import { api } from "../services/api";
 import { open } from "@tauri-apps/plugin-dialog";
 import { readFile, writeFile, BaseDirectory, exists, mkdir } from "@tauri-apps/plugin-fs";
 import { usePrinter } from "../hooks/usePrinter";
-
 import { invoke } from "@tauri-apps/api/core";
-
 import { QRCodeCanvas } from "qrcode.react";
+import {
+  Settings,
+  Save,
+  Printer,
+  Globe,
+  Copy,
+  ImageIcon,
+  Building2,
+  Phone,
+  Mail,
+  MapPin,
+  MessageSquare,
+  Clock,
+  Usb,
+  CheckCircle2,
+  AlertCircle,
+  FlaskConical,
+  X,
+  Wifi,
+} from "lucide-react";
+
+// ─── Paleta ───────────────────────────────────────────────
+const C = {
+  bg:          "#f4f6f5",
+  surface:     "#ffffff",
+  border:      "#e4e9e6",
+  borderHover: "#c8d5cf",
+  accent:      "#16a34a",
+  accentLight: "#f0fdf4",
+  accentMid:   "#bbf7d0",
+  text:        "#0f1f1a",
+  textSub:     "#5a7068",
+  textMuted:   "#96aaa4",
+  danger:      "#dc2626",
+  dangerLight: "#fff7f7",
+  dangerBorder:"#fca5a5",
+  purple:      "#7c3aed",
+  purpleLight: "#f5f3ff",
+  purpleBorder:"#ddd6fe",
+};
 
 interface Config {
   nombre_negocio: string;
@@ -21,6 +59,76 @@ interface Config {
 
 const CARPETA_APP = "POSKEY";
 const NOMBRE_LOGO = "logo.png";
+
+// ─── Componente de sección label ──────────────────────────
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <div style={{
+      display: "flex", alignItems: "center", gap: 8,
+      marginBottom: 12,
+    }}>
+      <div style={{ height: 1, width: 16, background: C.borderHover }} />
+      <span style={{
+        fontSize: 10, fontWeight: 700, letterSpacing: "0.12em",
+        textTransform: "uppercase", color: C.textMuted,
+        whiteSpace: "nowrap",
+      }}>
+        {children}
+      </span>
+      <div style={{ height: 1, flex: 1, background: C.border }} />
+    </div>
+  );
+}
+
+// ─── Campo de formulario ──────────────────────────────────
+function Field({
+  icon, label, description, children,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  description: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div style={{
+      background: C.surface,
+      borderRadius: 12,
+      border: `1px solid ${C.border}`,
+      padding: "16px 20px",
+      display: "flex",
+      alignItems: "center",
+      gap: 16,
+    }}>
+      <div style={{
+        width: 36, height: 36, borderRadius: 9,
+        background: C.accentLight, border: `1px solid ${C.accentMid}`,
+        display: "flex", alignItems: "center", justifyContent: "center",
+        flexShrink: 0, color: C.accent,
+      }}>
+        {icon}
+      </div>
+      <div style={{ flex: 1 }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{label}</div>
+        <div style={{ fontSize: 11, color: C.textMuted, marginTop: 2 }}>{description}</div>
+      </div>
+      <div style={{ flexShrink: 0 }}>{children}</div>
+    </div>
+  );
+}
+
+const inputStyle: React.CSSProperties = {
+  padding: "8px 12px",
+  borderRadius: 8,
+  border: `1px solid ${C.border}`,
+  fontSize: 13,
+  fontFamily: "'Inter', system-ui, sans-serif",
+  color: C.text,
+  outline: "none",
+  background: C.bg,
+  width: 180,
+  boxSizing: "border-box",
+  transition: "border-color 0.15s",
+};
 
 export default function Configuracion() {
   const [config, setConfig] = useState<Config>({
@@ -40,33 +148,21 @@ export default function Configuracion() {
   const [logoPreview, setLogoPreview]   = useState<string>("");
   const [toast, setToast]               = useState<{ msg: string; type: "ok" | "err" } | null>(null);
 
-  // ── IMPRESORA ─────────────────────────────────────────────
   const { imprimirPrecuenta } = usePrinter();
   const [vidInput, setVidInput] = useState("");
   const [pidInput, setPidInput] = useState("");
   const [testando, setTestando] = useState(false);
 
+  const [red, setRed] = useState({ host: "", ip: "", puerto: 8000, url: "" });
 
-  const [red, setRed] = useState({
-  host: "",
-  ip: "",
-  puerto: 8000,
-  url: ""
-});
+  useEffect(() => {
+    async function cargarRed() {
+      const info = await invoke("obtener_info_red");
+      setRed(info as any);
+    }
+    cargarRed();
+  }, []);
 
-
-useEffect(() => {
-  async function cargarRed() {
-    const info = await invoke("obtener_info_red");
-    setRed(info as any);
-  }
-
-  cargarRed();
-}, []);
-
-
-
-  // Cargar VID/PID desde BD cuando llega rawConfig
   useEffect(() => {
     if (rawConfig.impresora_vid && rawConfig.impresora_pid) {
       setVidInput(Number(rawConfig.impresora_vid).toString(16).toUpperCase().padStart(4, "0"));
@@ -81,7 +177,6 @@ useEffect(() => {
       showToast("VID/PID inválidos. Deben ser hexadecimales (ej: 04B8)", "err");
       return;
     }
-    // Inyectar en rawConfig para que se guarde junto con "Guardar cambios"
     setRawConfig(prev => ({ ...prev, impresora_vid: vid, impresora_pid: pid }));
     showToast("VID/PID listos — presiona 'Guardar cambios' para confirmar en BD", "ok");
   }
@@ -109,14 +204,13 @@ useEffect(() => {
         total:       1000,
         metodo_pago: "—",
       });
-      showToast("✅ Ticket de prueba impreso", "ok");
+      showToast("Ticket de prueba impreso correctamente", "ok");
     } catch (e: any) {
       showToast(`Error: ${e.message ?? e}`, "err");
     } finally {
       setTestando(false);
     }
   }
-  // ─────────────────────────────────────────────────────────
 
   async function cargar() {
     const res = await api.get("/configuracion");
@@ -158,7 +252,7 @@ useEffect(() => {
       const blob = new Blob([bytes], { type: "image/png" });
       setLogoPreview(URL.createObjectURL(blob));
       setConfig(c => ({ ...c, logo: NOMBRE_LOGO }));
-      showToast("Logo cargado, recuerda guardar cambios", "ok");
+      showToast("Logo cargado. Guarda los cambios para confirmar.", "ok");
     } catch (err) {
       console.error(err);
       showToast("No se pudo cargar el logo", "err");
@@ -176,7 +270,7 @@ useEffect(() => {
       await api.put("/configuracion", { ...rawConfig, ...config });
       showToast("Configuración guardada correctamente", "ok");
       window.dispatchEvent(new CustomEvent("config-actualizada", {
-        detail: { nombre_negocio: config.nombre_negocio }
+        detail: { nombre_negocio: config.nombre_negocio, logo: config.logo }
       }));
     } catch { showToast("Error al guardar la configuración", "err"); }
     finally { setGuardando(false); }
@@ -189,338 +283,536 @@ useEffect(() => {
 
   useEffect(() => { cargar(); }, []);
 
-  const field = (label: string, description: string, children: React.ReactNode) => (
-    <div style={{
-      background: "white", borderRadius: 14, border: "1px solid #e2e8f0",
-      padding: "20px 24px", display: "flex", alignItems: "center",
-      justifyContent: "space-between", gap: 24,
-    }}>
-      <div style={{ flex: 1 }}>
-        <div style={{ fontSize: 14, fontWeight: 700, color: "#0f172a" }}>{label}</div>
-        <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 3 }}>{description}</div>
-      </div>
-      <div style={{ flexShrink: 0 }}>{children}</div>
-    </div>
-  );
-
-  const inputStyle: React.CSSProperties = {
-    padding: "9px 14px", borderRadius: 9, border: "1px solid #cbd5e1",
-    fontSize: 14, fontFamily: "'Inter', system-ui, sans-serif",
-    color: "#0f172a", outline: "none", background: "#f8fafc",
-    width: 180, boxSizing: "border-box",
-  };
-
   const impresoraConfigurada = vidInput.length === 4 && pidInput.length === 4;
 
   return (
     <div style={{
       display: "flex", flexDirection: "column", height: "100vh",
-      overflow: "hidden", fontFamily: "'Inter', system-ui, sans-serif", background: "#f1f5f3",
+      overflow: "hidden", fontFamily: "'Inter', system-ui, sans-serif",
+      background: C.bg,
     }}>
-      {/* HEADER */}
-      <div style={{ flexShrink: 0, padding: "24px 32px", borderBottom: "1px solid #e2e8f0", background: "#f1f5f3" }}>
-        <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: "#0f1f1a", display: "flex", alignItems: "center", gap: 10 }}>
-          ⚙️ Configuración
-        </h1>
-        <p style={{ margin: "4px 0 0", fontSize: 13, color: "#94a3b8" }}>Ajustes generales del sistema</p>
+
+      {/* ── HEADER ──────────────────────────────────────────── */}
+      <div style={{
+        flexShrink: 0,
+        padding: "20px 32px",
+        borderBottom: `1px solid ${C.border}`,
+        background: C.surface,
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{
+            width: 38, height: 38, borderRadius: 10,
+            background: C.accentLight, border: `1px solid ${C.accentMid}`,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            color: C.accent,
+          }}>
+            <Settings size={18} strokeWidth={2} />
+          </div>
+          <div>
+            <h1 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: C.text }}>
+              Configuración
+            </h1>
+            <p style={{ margin: 0, fontSize: 12, color: C.textMuted }}>
+              Ajustes generales del sistema
+            </p>
+          </div>
+        </div>
+
+        {/* Botón guardar en header — siempre visible */}
+        <button
+          onClick={guardar}
+          disabled={guardando}
+          style={{
+            display: "flex", alignItems: "center", gap: 7,
+            padding: "9px 20px", borderRadius: 9, border: "none",
+            background: guardando
+              ? C.accentMid
+              : `linear-gradient(135deg, ${C.accent}, #15803d)`,
+            color: "white", fontWeight: 600, fontSize: 13,
+            cursor: guardando ? "default" : "pointer",
+            boxShadow: guardando ? "none" : "0 2px 8px rgba(22,163,74,0.25)",
+            transition: "all 0.15s",
+            fontFamily: "'Inter', system-ui, sans-serif",
+          }}
+        >
+          <Save size={15} strokeWidth={2.2} />
+          {guardando ? "Guardando…" : "Guardar cambios"}
+        </button>
       </div>
 
-      {/* CONTENIDO */}
-      <div
-            style={{
-              flex: 1,
-              overflowY: "auto",
-              padding: "28px 32px",
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                gap: 24,
-                alignItems: "flex-start",
-              }}
-            >
+      {/* ── CONTENIDO ───────────────────────────────────────── */}
+      <div style={{ flex: 1, overflowY: "auto", padding: "28px 32px" }}>
+        <div style={{ display: "flex", gap: 24, alignItems: "flex-start", maxWidth: 1100 }}>
 
-          {/* ── COLUMNA IZQUIERDA: todos los ajustes ── */}
-          <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0 }}>
+          {/* ── COLUMNA IZQUIERDA ── */}
+          <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0, gap: 28 }}>
 
-          {/* Negocio */}
-          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#94a3b8", marginBottom: 12 }}>
-            Negocio
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 32 }}>
-            {field("Nombre del negocio", "Aparece en tickets y reportes",
-              <input style={{ ...inputStyle, width: 220 }} value={config.nombre_negocio}
-                onChange={e => setConfig({ ...config, nombre_negocio: e.target.value })}
-                placeholder="Ej: La Trattoria" />
-            )}
-          </div>
-
-          {/* Horario */}
-          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#94a3b8", marginBottom: 12 }}>
-            Horario de operación
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 40 }}>
-            {field("Hora de apertura", "Inicio del turno operativo",
-              <input type="time" style={inputStyle} value={config.hora_inicio_operacion}
-                onChange={e => setConfig({ ...config, hora_inicio_operacion: e.target.value })} />
-            )}
-            {field("Hora de cierre", "Fin del turno operativo",
-              <input type="time" style={inputStyle} value={config.hora_cierre_operacion}
-                onChange={e => setConfig({ ...config, hora_cierre_operacion: e.target.value })} />
-            )}
-          </div>
-
-          {/* Facturación */}
-          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#94a3b8", marginBottom: 12, marginTop: 30 }}>
-            Facturación
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 32 }}>
-            {field("Teléfono", "Aparece en la factura",
-              <input style={inputStyle} value={config.telefono}
-                onChange={e => setConfig({ ...config, telefono: e.target.value })} />
-            )}
-            {field("Correo", "Correo del negocio",
-              <input style={{ ...inputStyle, width: 250 }} value={config.correo}
-                onChange={e => setConfig({ ...config, correo: e.target.value })} />
-            )}
-            {field("Dirección", "Aparece en la factura",
-              <input style={{ ...inputStyle, width: 320 }} value={config.direccion}
-                onChange={e => setConfig({ ...config, direccion: e.target.value })} />
-            )}
-            {field("Mensaje final", "Pie de factura",
-              <input style={{ ...inputStyle, width: 320 }} value={config.mensaje_factura}
-                onChange={e => setConfig({ ...config, mensaje_factura: e.target.value })} />
-            )}
-          </div>
-
-          {/* ── IMPRESORA TÉRMICA ── */}
-          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#94a3b8", marginBottom: 12 }}>
-            Impresora Térmica
-          </div>
-          <div style={{ background: "white", borderRadius: 14, border: "1px solid #e2e8f0", padding: "20px 24px", marginBottom: 32 }}>
-
-            {/* Estado */}
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
-              <div style={{ width: 10, height: 10, borderRadius: "50%", background: impresoraConfigurada ? "#22c55e" : "#94a3b8", flexShrink: 0 }}/>
-              <span style={{ fontSize: 13, color: impresoraConfigurada ? "#15803d" : "#94a3b8", fontWeight: 600 }}>
-                {impresoraConfigurada
-                  ? `Configurada — VID: ${vidInput}  PID: ${pidInput}`
-                  : "Sin impresora configurada"}
-              </span>
-            </div>
-
-            {/* Instrucciones */}
-            <div style={{ background: "#f8fafc", borderRadius: 10, padding: "12px 14px", marginBottom: 18, fontSize: 12, color: "#64748b", lineHeight: 1.6 }}>
-              <strong style={{ color: "#0f172a" }}>¿Cómo obtener el VID y PID?</strong><br/>
-              1. Conecta la impresora por USB<br/>
-              2. Abre el <strong>Administrador de Dispositivos</strong> de Windows<br/>
-              3. Busca la impresora en "Dispositivos de interfaz universal de bus serie"<br/>
-              4. Clic derecho → Propiedades → Detalles → ID de Hardware<br/>
-              5. Verás algo como: <code style={{ background: "#e2e8f0", padding: "1px 6px", borderRadius: 4 }}>USB\VID_04B8&PID_0202</code>
-            </div>
-
-            {/* Inputs */}
-            <div style={{ display: "flex", gap: 12, alignItems: "flex-end", flexWrap: "wrap" }}>
-              <div>
-                <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>
-                  VID (hex)
-                </label>
-                <input
-                  value={vidInput}
-                  onChange={e => setVidInput(e.target.value.toUpperCase())}
-                  placeholder="04B8"
-                  maxLength={4}
-                  style={{ ...inputStyle, width: 100, fontFamily: "monospace", letterSpacing: "0.1em" }}
-                />
+            {/* NEGOCIO */}
+            <section>
+              <SectionLabel>Negocio</SectionLabel>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <Field
+                  icon={<Building2 size={16} strokeWidth={2} />}
+                  label="Nombre del negocio"
+                  description="Aparece en tickets y reportes"
+                >
+                  <input
+                    style={{ ...inputStyle, width: 220 }}
+                    value={config.nombre_negocio}
+                    onChange={e => setConfig({ ...config, nombre_negocio: e.target.value })}
+                    placeholder="Ej: La Trattoria"
+                  />
+                </Field>
               </div>
-              <div>
-                <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>
-                  PID (hex)
-                </label>
-                <input
-                  value={pidInput}
-                  onChange={e => setPidInput(e.target.value.toUpperCase())}
-                  placeholder="0202"
-                  maxLength={4}
-                  style={{ ...inputStyle, width: 100, fontFamily: "monospace", letterSpacing: "0.1em" }}
-                />
+            </section>
+
+            {/* HORARIO */}
+            <section>
+              <SectionLabel>Horario de operación</SectionLabel>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <Field
+                  icon={<Clock size={16} strokeWidth={2} />}
+                  label="Hora de apertura"
+                  description="Inicio del turno operativo"
+                >
+                  <input
+                    type="time"
+                    style={inputStyle}
+                    value={config.hora_inicio_operacion}
+                    onChange={e => setConfig({ ...config, hora_inicio_operacion: e.target.value })}
+                  />
+                </Field>
+                <Field
+                  icon={<Clock size={16} strokeWidth={2} />}
+                  label="Hora de cierre"
+                  description="Fin del turno operativo"
+                >
+                  <input
+                    type="time"
+                    style={inputStyle}
+                    value={config.hora_cierre_operacion}
+                    onChange={e => setConfig({ ...config, hora_cierre_operacion: e.target.value })}
+                  />
+                </Field>
               </div>
-              <button onClick={guardarImpresora} style={{
-                padding: "9px 18px", borderRadius: 9, border: "none",
-                background: "linear-gradient(135deg,#16a34a,#22c55e)",
-                color: "white", fontWeight: 700, fontSize: 13, cursor: "pointer",
+            </section>
+
+            {/* FACTURACIÓN */}
+            <section>
+              <SectionLabel>Facturación</SectionLabel>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <Field
+                  icon={<Phone size={16} strokeWidth={2} />}
+                  label="Teléfono"
+                  description="Aparece en la factura"
+                >
+                  <input
+                    style={inputStyle}
+                    value={config.telefono}
+                    onChange={e => setConfig({ ...config, telefono: e.target.value })}
+                  />
+                </Field>
+                <Field
+                  icon={<Mail size={16} strokeWidth={2} />}
+                  label="Correo electrónico"
+                  description="Correo del negocio"
+                >
+                  <input
+                    style={{ ...inputStyle, width: 250 }}
+                    value={config.correo}
+                    onChange={e => setConfig({ ...config, correo: e.target.value })}
+                  />
+                </Field>
+                <Field
+                  icon={<MapPin size={16} strokeWidth={2} />}
+                  label="Dirección"
+                  description="Aparece en la factura"
+                >
+                  <input
+                    style={{ ...inputStyle, width: 300 }}
+                    value={config.direccion}
+                    onChange={e => setConfig({ ...config, direccion: e.target.value })}
+                  />
+                </Field>
+                <Field
+                  icon={<MessageSquare size={16} strokeWidth={2} />}
+                  label="Mensaje final"
+                  description="Pie de factura"
+                >
+                  <input
+                    style={{ ...inputStyle, width: 300 }}
+                    value={config.mensaje_factura}
+                    onChange={e => setConfig({ ...config, mensaje_factura: e.target.value })}
+                  />
+                </Field>
+              </div>
+            </section>
+
+            {/* IMPRESORA */}
+            <section>
+              <SectionLabel>Impresora térmica</SectionLabel>
+              <div style={{
+                background: C.surface,
+                borderRadius: 14,
+                border: `1px solid ${C.border}`,
+                overflow: "hidden",
               }}>
-                💾 Aplicar
-              </button>
-              {impresoraConfigurada && (
-                <button onClick={testImpresora} disabled={testando} style={{
-                  padding: "9px 18px", borderRadius: 9,
-                  border: "1px solid #ddd6fe", background: "#f5f3ff",
-                  color: "#7c3aed", fontWeight: 700, fontSize: 13,
-                  cursor: testando ? "default" : "pointer",
-                  opacity: testando ? 0.6 : 1,
+                {/* Status bar */}
+                <div style={{
+                  padding: "14px 20px",
+                  borderBottom: `1px solid ${C.border}`,
+                  display: "flex", alignItems: "center", justifyContent: "space-between",
+                  background: impresoraConfigurada ? C.accentLight : C.bg,
                 }}>
-                  {testando ? "Imprimiendo…" : "🖨️ Test"}
-                </button>
-              )}
-            </div>
-          </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <div style={{
+                      width: 8, height: 8, borderRadius: "50%",
+                      background: impresoraConfigurada ? C.accent : C.textMuted,
+                    }} />
+                    <span style={{
+                      fontSize: 13, fontWeight: 600,
+                      color: impresoraConfigurada ? C.accent : C.textMuted,
+                    }}>
+                      {impresoraConfigurada
+                        ? `Configurada — VID: ${vidInput}  ·  PID: ${pidInput}`
+                        : "Sin impresora configurada"}
+                    </span>
+                  </div>
+                  {impresoraConfigurada && (
+                    <CheckCircle2 size={16} color={C.accent} strokeWidth={2} />
+                  )}
+                </div>
 
-          {/* Logo */}
-          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#94a3b8", marginBottom: 12 }}>
-            Logo
-          </div>
-          <div style={{ marginBottom: 40 }}>
-            <div style={{ background: "white", borderRadius: 14, border: "1px solid #e2e8f0", padding: "20px 24px", display: "flex", alignItems: "center", gap: 20 }}>
-              <div style={{ width: 76, height: 76, borderRadius: 12, border: "1px dashed #cbd5e1", background: "#f8fafc", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", flexShrink: 0 }}>
-                {logoPreview
-                  ? <img src={logoPreview} alt="Logo" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
-                  : <span style={{ fontSize: 22, opacity: 0.4 }}>🖼️</span>}
+                <div style={{ padding: "20px 20px" }}>
+                  {/* Instrucciones */}
+                  <div style={{
+                    background: C.bg,
+                    borderRadius: 10,
+                    border: `1px solid ${C.border}`,
+                    padding: "14px 16px",
+                    marginBottom: 20,
+                    fontSize: 12,
+                    color: C.textSub,
+                    lineHeight: 1.7,
+                  }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, color: C.text, fontWeight: 600, fontSize: 12 }}>
+                      <Usb size={13} strokeWidth={2} />
+                      ¿Cómo obtener el VID y PID?
+                    </div>
+                    1. Conecta la impresora por USB<br />
+                    2. Abre el <strong>Administrador de Dispositivos</strong> de Windows<br />
+                    3. Busca la impresora en "Dispositivos de interfaz universal de bus serie"<br />
+                    4. Clic derecho → Propiedades → Detalles → ID de Hardware<br />
+                    5. Verás algo como:{" "}
+                    <code style={{
+                      background: C.border, padding: "1px 6px",
+                      borderRadius: 4, fontFamily: "monospace", fontSize: 11,
+                    }}>
+                      USB\VID_04B8&PID_0202
+                    </code>
+                  </div>
+
+                  {/* Inputs + botones */}
+                  <div style={{ display: "flex", gap: 12, alignItems: "flex-end", flexWrap: "wrap" }}>
+                    <div>
+                      <label style={{
+                        display: "block", fontSize: 10, fontWeight: 700,
+                        color: C.textMuted, textTransform: "uppercase",
+                        letterSpacing: "0.08em", marginBottom: 6,
+                      }}>
+                        VID (hex)
+                      </label>
+                      <input
+                        value={vidInput}
+                        onChange={e => setVidInput(e.target.value.toUpperCase())}
+                        placeholder="04B8"
+                        maxLength={4}
+                        style={{
+                          ...inputStyle, width: 90,
+                          fontFamily: "monospace", letterSpacing: "0.12em",
+                          textAlign: "center", fontSize: 14, fontWeight: 600,
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{
+                        display: "block", fontSize: 10, fontWeight: 700,
+                        color: C.textMuted, textTransform: "uppercase",
+                        letterSpacing: "0.08em", marginBottom: 6,
+                      }}>
+                        PID (hex)
+                      </label>
+                      <input
+                        value={pidInput}
+                        onChange={e => setPidInput(e.target.value.toUpperCase())}
+                        placeholder="0202"
+                        maxLength={4}
+                        style={{
+                          ...inputStyle, width: 90,
+                          fontFamily: "monospace", letterSpacing: "0.12em",
+                          textAlign: "center", fontSize: 14, fontWeight: 600,
+                        }}
+                      />
+                    </div>
+
+                    <button
+                      onClick={guardarImpresora}
+                      style={{
+                        display: "flex", alignItems: "center", gap: 6,
+                        padding: "8px 16px", borderRadius: 8, border: "none",
+                        background: `linear-gradient(135deg, ${C.accent}, #15803d)`,
+                        color: "white", fontWeight: 600, fontSize: 13, cursor: "pointer",
+                        fontFamily: "'Inter', system-ui, sans-serif",
+                      }}
+                    >
+                      <Save size={14} strokeWidth={2.2} />
+                      Aplicar
+                    </button>
+
+                    {impresoraConfigurada && (
+                      <button
+                        onClick={testImpresora}
+                        disabled={testando}
+                        style={{
+                          display: "flex", alignItems: "center", gap: 6,
+                          padding: "8px 16px", borderRadius: 8,
+                          border: `1px solid ${C.purpleBorder}`,
+                          background: C.purpleLight,
+                          color: C.purple, fontWeight: 600, fontSize: 13,
+                          cursor: testando ? "default" : "pointer",
+                          opacity: testando ? 0.6 : 1,
+                          fontFamily: "'Inter', system-ui, sans-serif",
+                        }}
+                      >
+                        <FlaskConical size={14} strokeWidth={2} />
+                        {testando ? "Imprimiendo…" : "Probar impresora"}
+                      </button>
+                    )}
+                  </div>
+                </div>
               </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 14, fontWeight: 700, color: "#0f172a" }}>Logo del restaurante</div>
-                <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 3 }}>Se mostrará en la parte superior de la factura. PNG o JPG.</div>
-              </div>
-              <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
-                {logoPreview && (
-                  <button onClick={quitarLogo} style={{ padding: "9px 14px", borderRadius: 9, border: "1px solid #fed7aa", background: "#fff7ed", color: "#c2410c", fontWeight: 600, fontSize: 13, cursor: "pointer", fontFamily: "'Inter', system-ui, sans-serif" }}>
-                    Quitar
+            </section>
+
+            {/* LOGO */}
+            <section>
+              <SectionLabel>Logo del negocio</SectionLabel>
+              <div style={{
+                background: C.surface,
+                borderRadius: 14,
+                border: `1px solid ${C.border}`,
+                padding: "20px",
+                display: "flex", alignItems: "center", gap: 20,
+              }}>
+                {/* Preview */}
+                <div style={{
+                  width: 80, height: 80, borderRadius: 12,
+                  border: `2px dashed ${C.borderHover}`,
+                  background: C.bg,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  overflow: "hidden", flexShrink: 0,
+                }}>
+                  {logoPreview
+                    ? <img src={logoPreview} alt="Logo" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+                    : <ImageIcon size={24} color={C.textMuted} strokeWidth={1.5} />
+                  }
+                </div>
+
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>
+                    {logoPreview ? "Logo cargado" : "Sin logo configurado"}
+                  </div>
+                  <div style={{ fontSize: 11, color: C.textMuted, marginTop: 3 }}>
+                    Se mostrará en la parte superior de la factura. PNG o JPG, fondo transparente recomendado.
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+                  {logoPreview && (
+                    <button
+                      onClick={quitarLogo}
+                      style={{
+                        display: "flex", alignItems: "center", gap: 6,
+                        padding: "8px 14px", borderRadius: 8,
+                        border: `1px solid ${C.dangerBorder}`,
+                        background: C.dangerLight,
+                        color: C.danger, fontWeight: 600, fontSize: 12,
+                        cursor: "pointer", fontFamily: "'Inter', system-ui, sans-serif",
+                      }}
+                    >
+                      <X size={13} strokeWidth={2.5} />
+                      Quitar
+                    </button>
+                  )}
+                  <button
+                    onClick={seleccionarLogo}
+                    disabled={subiendoLogo}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 6,
+                      padding: "8px 16px", borderRadius: 8,
+                      border: `1px solid ${C.border}`,
+                      background: subiendoLogo ? C.bg : C.surface,
+                      color: C.text, fontWeight: 600, fontSize: 12,
+                      cursor: subiendoLogo ? "default" : "pointer",
+                      fontFamily: "'Inter', system-ui, sans-serif",
+                    }}
+                  >
+                    <ImageIcon size={13} strokeWidth={2} />
+                    {subiendoLogo ? "Cargando…" : "Seleccionar imagen"}
                   </button>
-                )}
-                <button onClick={seleccionarLogo} disabled={subiendoLogo} style={{ padding: "9px 16px", borderRadius: 9, border: "1px solid #cbd5e1", background: subiendoLogo ? "#f1f5f9" : "white", color: "#0f172a", fontWeight: 600, fontSize: 13, cursor: subiendoLogo ? "default" : "pointer", fontFamily: "'Inter', system-ui, sans-serif" }}>
-                  {subiendoLogo ? "Cargando…" : "Seleccionar imagen"}
-                </button>
+                </div>
               </div>
-            </div>
-          </div>
-
-          {/* BOTÓN GUARDAR */}
-          <button onClick={guardar} disabled={guardando} style={{
-            padding: "12px 32px", borderRadius: 10, border: "none",
-            background: guardando ? "#86efac" : "linear-gradient(135deg, #22c55e, #15803d)",
-            color: "white", fontWeight: 700, fontSize: 14,
-            cursor: guardando ? "default" : "pointer",
-            fontFamily: "'Inter', system-ui, sans-serif",
-            boxShadow: "0 4px 12px rgba(34,197,94,0.3)", transition: "opacity 0.15s",
-          }}>
-            {guardando ? "Guardando…" : "💾 Guardar cambios"}
-          </button>
+            </section>
 
           </div>
           {/* ── FIN COLUMNA IZQUIERDA ── */}
 
-          {/* ── COLUMNA DERECHA: QR / red ── */}
-          <div
-            style={{
-              width: 380,
-              position: "sticky",
-              top: 24,
-              flexShrink: 0,
-            }}
-          >
-            <div
-              style={{
-                background: "#fff",
-                border: "1px solid #e2e8f0",
-                borderRadius: 18,
-                padding: 24,
-                boxShadow: "0 10px 30px rgba(0,0,0,0.05)",
-              }}
-            >
-              <h3
-                style={{
-                  margin: 0,
-                  marginBottom: 20,
-                  fontSize: 20,
-                  fontWeight: 800,
-                  color: "#0f172a",
-                }}
-              >
-                🌐 POSKEY Mobile
-              </h3>
+          {/* ── COLUMNA DERECHA: red / QR ── */}
+          <div style={{ width: 340, flexShrink: 0, position: "sticky", top: 0 }}>
+            <div style={{
+              background: C.surface,
+              border: `1px solid ${C.border}`,
+              borderRadius: 16,
+              overflow: "hidden",
+            }}>
 
-              <div style={{ marginBottom: 10 }}>
-                <strong>Host:</strong> {red.host}
+              {/* Header panel */}
+              <div style={{
+                padding: "16px 20px",
+                borderBottom: `1px solid ${C.border}`,
+                display: "flex", alignItems: "center", gap: 10,
+                background: C.accentLight,
+              }}>
+                <div style={{
+                  width: 32, height: 32, borderRadius: 8,
+                  background: C.surface, border: `1px solid ${C.accentMid}`,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  color: C.accent,
+                }}>
+                  <Globe size={16} strokeWidth={2} />
+                </div>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>POSKEY Mobile</div>
+                  <div style={{ fontSize: 11, color: C.textSub }}>Acceso desde dispositivos en red</div>
+                </div>
               </div>
 
-              <div style={{ marginBottom: 10 }}>
-                <strong>IP:</strong> {red.ip}
-              </div>
+              <div style={{ padding: "20px" }}>
 
-              <div style={{ marginBottom: 10 }}>
-                <strong>Puerto:</strong> {red.puerto}
-              </div>
+                {/* Info de red */}
+                <div style={{
+                  display: "flex", flexDirection: "column", gap: 6, marginBottom: 16,
+                }}>
+                  {[
+                    { label: "Host", value: red.host },
+                    { label: "IP", value: red.ip },
+                    { label: "Puerto", value: String(red.puerto) },
+                  ].map(({ label, value }) => (
+                    <div
+                      key={label}
+                      style={{
+                        display: "flex", alignItems: "center", justifyContent: "space-between",
+                        padding: "8px 12px", borderRadius: 8,
+                        background: C.bg, border: `1px solid ${C.border}`,
+                      }}
+                    >
+                      <span style={{ fontSize: 11, fontWeight: 600, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                        {label}
+                      </span>
+                      <span style={{ fontSize: 12, fontWeight: 600, color: C.text, fontFamily: "monospace" }}>
+                        {value || "—"}
+                      </span>
+                    </div>
+                  ))}
+                </div>
 
-              <div
-                style={{
-                  marginBottom: 20,
-                  padding: 10,
+                {/* URL pill */}
+                <div style={{
+                  padding: "10px 14px",
                   borderRadius: 10,
-                  background: "#f8fafc",
-                  color: "#0284c7",
-                  fontSize: 13,
+                  background: "#eff6ff",
+                  border: "1px solid #bfdbfe",
+                  color: "#1d4ed8",
+                  fontSize: 12,
+                  fontFamily: "monospace",
                   wordBreak: "break-all",
-                }}
-              >
-                {red.url}/mobile
-              </div>
-
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "center",
                   marginBottom: 20,
-                }}
-              >
-                <QRCodeCanvas
-                  value={`${red.url}/mobile`}
-                  size={220}
-                />
-              </div>
+                  fontWeight: 500,
+                  display: "flex", alignItems: "center", gap: 6,
+                }}>
+                  <Wifi size={13} strokeWidth={2} style={{ flexShrink: 0 }} />
+                  {red.url ? `${red.url}/mobile` : "Cargando…"}
+                </div>
 
-              <button
-                onClick={() =>
-                  navigator.clipboard.writeText(
-                    `${red.url}/mobile`
-                  )
-                }
-                style={{
-                  width: "100%",
-                  padding: "10px",
-                  borderRadius: 10,
-                  border: "none",
-                  background:
-                    "linear-gradient(135deg,#22c55e,#16a34a)",
-                  color: "white",
-                  fontWeight: 700,
-                  cursor: "pointer",
-                }}
-              >
-                📋 Copiar URL
-              </button>
+                {/* QR */}
+                <div style={{
+                  display: "flex", justifyContent: "center",
+                  padding: "16px",
+                  borderRadius: 12,
+                  background: C.bg,
+                  border: `1px solid ${C.border}`,
+                  marginBottom: 16,
+                }}>
+                  <QRCodeCanvas
+                    value={red.url ? `${red.url}/mobile` : "https://poskey.app"}
+                    size={200}
+                    bgColor="transparent"
+                    fgColor={C.text}
+                  />
+                </div>
+
+                {/* Botón copiar */}
+                <button
+                  onClick={() => navigator.clipboard.writeText(`${red.url}/mobile`)}
+                  style={{
+                    width: "100%",
+                    display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
+                    padding: "10px",
+                    borderRadius: 9, border: "none",
+                    background: `linear-gradient(135deg, ${C.accent}, #15803d)`,
+                    color: "white", fontWeight: 600, fontSize: 13,
+                    cursor: "pointer",
+                    fontFamily: "'Inter', system-ui, sans-serif",
+                    boxShadow: "0 2px 8px rgba(22,163,74,0.2)",
+                  }}
+                >
+                  <Copy size={14} strokeWidth={2.2} />
+                  Copiar URL
+                </button>
+              </div>
             </div>
+
+            {/* Nota discreta */}
+            <p style={{ fontSize: 11, color: C.textMuted, textAlign: "center", marginTop: 12, lineHeight: 1.5 }}>
+              Escanea el QR desde un celular conectado a la misma red Wi-Fi.
+            </p>
           </div>
           {/* ── FIN COLUMNA DERECHA ── */}
 
         </div>
       </div>
 
-      {/* TOAST */}
+      {/* ── TOAST ─────────────────────────────────────────── */}
       {toast && (
         <div style={{
           position: "fixed", bottom: 24, left: "50%", transform: "translateX(-50%)",
-          padding: "10px 20px", borderRadius: 99, fontSize: 13, fontWeight: 600,
+          display: "flex", alignItems: "center", gap: 8,
+          padding: "10px 18px", borderRadius: 99, fontSize: 13, fontWeight: 600,
           whiteSpace: "nowrap",
-          background: toast.type === "ok" ? "#f0fdf4" : "#fff7ed",
-          border: `1px solid ${toast.type === "ok" ? "#bbf7d0" : "#fed7aa"}`,
-          color: toast.type === "ok" ? "#15803d" : "#c2410c", zIndex: 200,
+          background: toast.type === "ok" ? C.accentLight : C.dangerLight,
+          border: `1px solid ${toast.type === "ok" ? C.accentMid : C.dangerBorder}`,
+          color: toast.type === "ok" ? C.accent : C.danger,
+          zIndex: 200,
+          boxShadow: "0 4px 16px rgba(0,0,0,0.08)",
         }}>
+          {toast.type === "ok"
+            ? <CheckCircle2 size={14} strokeWidth={2.5} />
+            : <AlertCircle size={14} strokeWidth={2.5} />
+          }
           {toast.msg}
         </div>
       )}
 
-      
     </div>
   );
 }

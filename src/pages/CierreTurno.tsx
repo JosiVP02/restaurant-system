@@ -1,11 +1,14 @@
-import { useState, useEffect  } from "react";
+import { useState, useEffect } from "react";
 import { api } from "../services/api";
 import { imprimirReporteCierre } from "./imprimirReporte";
+import {
+  Landmark, CalendarDays, TrendingUp, Users, Target,
+  Calculator, Scissors, Wallet, CreditCard, Smartphone,
+  Trophy, Receipt, UtensilsCrossed, Eye, Printer,
+  ChevronUp, ChevronDown, AlertTriangle, X, Clock,
+} from "lucide-react";
 
-
-
-
-// ── tipos ─────────────────────────────────────────────────────────────────────
+// ── tipos ─────────────────────────────────────────────────────
 interface CuentaDetalle {
   id: number;
   mesa: string;
@@ -15,20 +18,17 @@ interface CuentaDetalle {
   servicio: number;
   total: number;
 }
-
 interface ItemCuenta {
   id: number;
   producto: string;
   cantidad: number;
   precio_unitario: number;
 }
-
 interface TopProducto {
   nombre: string;
   cantidad: number;
   total: number;
 }
-
 interface ResultadoCierre {
   fecha: string;
   turno_inicio: string;
@@ -47,7 +47,7 @@ interface ResultadoCierre {
   cuentas: CuentaDetalle[];
 }
 
-// ── helpers ───────────────────────────────────────────────────────────────────
+// ── helpers ───────────────────────────────────────────────────
 const fmt = (n: number) => `₡${Math.round(n).toLocaleString("es-CR")}`;
 const fmtHora = (s: string | null) =>
   s ? new Date(s).toLocaleTimeString("es-CR", { hour: "2-digit", minute: "2-digit" }) : "—";
@@ -56,38 +56,62 @@ const fmtFechaHora = (s: string) =>
     weekday: "short", month: "short", day: "numeric",
     hour: "2-digit", minute: "2-digit",
   });
-
-const METODO_ICON: Record<string, string> = { Efectivo: "💵", Tarjeta: "💳", SINPE: "📱" };
-const METODO_COLOR: Record<string, { bg: string; color: string; border: string }> = {
-  Efectivo: { bg: "#f0fdf4", color: "#16a34a", border: "#bbf7d0" },
-  Tarjeta:  { bg: "#eff6ff", color: "#2563eb", border: "#bfdbfe" },
-  SINPE:    { bg: "#faf5ff", color: "#7c3aed", border: "#ddd6fe" },
-};
-
-
-
-
 const hoy = () => {
-
   const fecha = new Date();
-
   const year = fecha.getFullYear();
-
-  const month = String(
-    fecha.getMonth() + 1
-  ).padStart(2, "0");
-
-  const day = String(
-    fecha.getDate()
-  ).padStart(2, "0");
-
+  const month = String(fecha.getMonth() + 1).padStart(2, "0");
+  const day = String(fecha.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
 };
 
+// ── Paleta (idéntica a Ventas/Productos) ─────────────────────
+const C = {
+  bg:        "#f4f6f8",
+  card:      "#ffffff",
+  cardB:     "#f9fafb",
+  border:    "#e4e7ec",
+  border2:   "#f0f2f5",
+  green:     "#16873d",
+  greenLt:   "#f0faf4",
+  greenB:    "#a7d7b8",
+  greenMid:  "#d1edd9",
+  blue:      "#2f54a0",
+  blueLt:    "#f0f4fb",
+  blueMid:   "#d5dff4",
+  blueB:     "#afc1e8",
+  violet:    "#6040a0",
+  violetLt:  "#f4f1fb",
+  violetMid: "#ddd6f4",
+  cyan:      "#0e7490",
+  cyanLt:    "#ecfeff",
+  cyanMid:   "#a5f3fc",
+  amber:     "#a16207",
+  amberLt:   "#fdf8ee",
+  amberMid:  "#f5e8be",
+  amberB:    "#e8c97a",
+  red:       "#b91c1c",
+  redLt:     "#fef2f2",
+  redMid:    "#fecaca",
+  slate:     "#111827",
+  text:      "#1f2937",
+  muted:     "#6b7280",
+  dim:       "#9ca3af",
+  dimB:      "#d1d5db",
+};
 
+// ── Métodos de pago ───────────────────────────────────────────
+const METODO_ICON: Record<string, React.ReactNode> = {
+  Efectivo: <Wallet   size={12} />,
+  Tarjeta:  <CreditCard size={12} />,
+  SINPE:    <Smartphone size={12} />,
+};
+const METODO_COLOR: Record<string, { bg: string; color: string; border: string }> = {
+  Efectivo: { bg: C.greenLt,  color: C.green,  border: C.greenB  },
+  Tarjeta:  { bg: C.blueLt,   color: C.blue,   border: C.blueB   },
+  SINPE:    { bg: C.violetLt, color: C.violet, border: C.violetMid },
+};
 
-
-// ── Modal detalle de cuenta ───────────────────────────────────────────────────
+// ── Modal detalle de cuenta ───────────────────────────────────
 function ModalDetalleCuenta({
   cuenta,
   onClose,
@@ -95,11 +119,10 @@ function ModalDetalleCuenta({
   cuenta: CuentaDetalle;
   onClose: () => void;
 }) {
-  const [items, setItems]       = useState<ItemCuenta[]>([]);
-  const [loading, setLoading]   = useState(true);
-  const [error, setError]       = useState("");
+  const [items, setItems]     = useState<ItemCuenta[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError]     = useState("");
 
-  // fetch al montar
   useState(() => {
     api.get(`/cuentas/${cuenta.id}/detalle`)
       .then(r => setItems(r.data))
@@ -109,16 +132,12 @@ function ModalDetalleCuenta({
 
   const col = METODO_COLOR[cuenta.metodo] ?? METODO_COLOR.Efectivo;
 
-
-
-
-
   return (
     <div
       onClick={onClose}
       style={{
         position: "fixed", inset: 0, zIndex: 1000,
-        background: "rgba(15,31,26,0.55)", backdropFilter: "blur(3px)",
+        background: "rgba(17,24,39,0.5)", backdropFilter: "blur(4px)",
         display: "flex", alignItems: "center", justifyContent: "center",
         padding: 20,
       }}
@@ -126,190 +145,177 @@ function ModalDetalleCuenta({
       <div
         onClick={e => e.stopPropagation()}
         style={{
-          background: "white",
-          borderRadius: 20,
+          background: C.card,
+          borderRadius: 16,
           width: "100%",
           maxWidth: 480,
-          boxShadow: "0 24px 64px rgba(0,0,0,0.22)",
+          boxShadow: "0 20px 60px rgba(0,0,0,0.2)",
           fontFamily: "'Inter', system-ui, sans-serif",
           overflow: "hidden",
         }}
       >
-        {/* cabecera verde */}
+        {/* Cabecera — slate, consistente con Ventas y Productos */}
         <div style={{
-          background: "linear-gradient(135deg, #1e3a2f, #0f1f1a)",
-          padding: "22px 26px",
+          background: C.slate,
+          padding: "18px 22px",
           display: "flex",
           justifyContent: "space-between",
           alignItems: "flex-start",
         }}>
           <div>
-            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", fontWeight: 700,
-                          letterSpacing: "0.1em", textTransform: "uppercase" }}>
+            <div style={{
+              fontSize: 10, color: "rgba(255,255,255,0.4)", fontWeight: 700,
+              letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 4,
+            }}>
               Cuenta #{cuenta.id}
             </div>
-            <div style={{ fontSize: 22, fontWeight: 800, color: "white", marginTop: 4 }}>
-              🍽️ {cuenta.mesa}
+            <div style={{ display: "flex", alignItems: "center", gap: 8, color: "white" }}>
+              <UtensilsCrossed size={16} />
+              <span style={{ fontSize: 18, fontWeight: 800 }}>{cuenta.mesa}</span>
             </div>
             <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 10 }}>
               <span style={{
-                padding: "4px 12px", borderRadius: 99, fontSize: 12, fontWeight: 700,
+                display: "inline-flex", alignItems: "center", gap: 5,
+                padding: "4px 10px", borderRadius: 6, fontSize: 11, fontWeight: 700,
                 background: col.bg, color: col.color, border: `1px solid ${col.border}`,
               }}>
                 {METODO_ICON[cuenta.metodo]} {cuenta.metodo}
               </span>
-              <span style={{ fontSize: 12, color: "rgba(255,255,255,0.45)" }}>
-                {fmtHora(cuenta.fecha_cierre)}
+              <span style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, color: "rgba(255,255,255,0.4)" }}>
+                <Clock size={11} /> {fmtHora(cuenta.fecha_cierre)}
               </span>
             </div>
           </div>
           <button
             onClick={onClose}
             style={{
-              background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.15)",
-              color: "white", borderRadius: 8, padding: "7px 14px",
-              fontSize: 12, cursor: "pointer", fontWeight: 700,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              width: 30, height: 30,
+              background: "rgba(255,255,255,0.08)",
+              border: "1px solid rgba(255,255,255,0.12)",
+              borderRadius: 7, color: "rgba(255,255,255,0.6)", cursor: "pointer",
             }}
           >
-            ✕ Cerrar
+            <X size={13} />
           </button>
         </div>
 
-        {/* cuerpo */}
-        <div style={{ padding: "20px 26px" }}>
-
-          {/* lista de productos */}
-          <div style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8",
-                          letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 10 }}>
-              Productos consumidos
-            </div>
-
-            {loading && (
-              <div style={{ textAlign: "center", padding: "24px 0", color: "#94a3b8", fontSize: 13 }}>
-                Cargando…
-              </div>
-            )}
-
-            {error && (
-              <div style={{ padding: "12px 14px", background: "#fef2f2",
-                            border: "1px solid #fecaca", borderRadius: 8,
-                            color: "#dc2626", fontSize: 13 }}>
-                ⚠️ {error}
-              </div>
-            )}
-
-            {!loading && !error && items.length === 0 && (
-              <div style={{ textAlign: "center", padding: "20px 0", color: "#94a3b8", fontSize: 13 }}>
-                Sin productos registrados
-              </div>
-            )}
-
-            {!loading && items.length > 0 && (
-              <div style={{
-                maxHeight: 280,
-                overflowY: "auto",
-                display: "flex",
-                flexDirection: "column",
-                gap: 6,
-              }}>
-                {/* header tabla */}
-                <div style={{
-                  display: "grid", gridTemplateColumns: "1fr 56px 80px 80px",
-                  padding: "6px 12px",
-                  fontSize: 10, fontWeight: 700, color: "#94a3b8",
-                  textTransform: "uppercase", letterSpacing: "0.06em",
-                }}>
-                  <span>Producto</span>
-                  <span style={{ textAlign: "center" }}>Cant.</span>
-                  <span style={{ textAlign: "right" }}>P. Unit.</span>
-                  <span style={{ textAlign: "right" }}>Total</span>
-                </div>
-
-                {items.map((item, i) => (
-                  <div key={item.id} style={{
-                    display: "grid", gridTemplateColumns: "1fr 56px 80px 80px",
-                    alignItems: "center",
-                    padding: "10px 12px",
-                    borderRadius: 10,
-                    background: i % 2 === 0 ? "#f8fafc" : "white",
-                    border: "1px solid #f1f5f9",
-                  }}>
-                    <span style={{ fontSize: 13.5, fontWeight: 600, color: "#1f2937" }}>
-                      {item.producto}
-                    </span>
-                    <span style={{
-                      textAlign: "center", fontSize: 13, fontWeight: 800,
-                      color: "white", background: "#475569", borderRadius: 6,
-                      padding: "2px 0", margin: "0 6px",
-                    }}>
-                      {item.cantidad}
-                    </span>
-                    <span style={{ textAlign: "right", fontSize: 12.5, color: "#64748b" }}>
-                      {fmt(item.precio_unitario)}
-                    </span>
-                    <span style={{ textAlign: "right", fontSize: 13, fontWeight: 700, color: "#1f2937" }}>
-                      {fmt(item.cantidad * item.precio_unitario)}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
+        {/* Cuerpo */}
+        <div style={{ padding: "20px 22px" }}>
+          <div style={{
+            fontSize: 10, fontWeight: 700, color: C.muted,
+            letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 10,
+          }}>
+            Productos consumidos
           </div>
 
-          {/* resumen financiero */}
-          <div style={{
-            borderTop: "1px solid #f1f5f9",
-            paddingTop: 14,
-            display: "flex", flexDirection: "column", gap: 6,
-          }}>
-            <div style={{ display: "flex", justifyContent: "space-between", padding: "6px 0" }}>
-              <span style={{ fontSize: 13, color: "#64748b" }}>Subtotal</span>
-              <span style={{ fontSize: 13, fontWeight: 600, color: "#1f2937" }}>{fmt(cuenta.subtotal)}</span>
+          {loading && (
+            <div style={{ textAlign: "center", padding: "24px 0", color: C.muted, fontSize: 13 }}>
+              Cargando…
+            </div>
+          )}
+
+          {error && (
+            <div style={{
+              display: "flex", alignItems: "center", gap: 8,
+              padding: "12px 14px", background: C.redLt,
+              border: `1px solid ${C.redMid}`, borderRadius: 8,
+              color: C.red, fontSize: 13,
+            }}>
+              <AlertTriangle size={14} /> {error}
+            </div>
+          )}
+
+          {!loading && !error && items.length === 0 && (
+            <div style={{ textAlign: "center", padding: "20px 0", color: C.muted, fontSize: 13 }}>
+              Sin productos registrados
+            </div>
+          )}
+
+          {!loading && items.length > 0 && (
+            <div style={{ maxHeight: 280, overflowY: "auto", display: "flex", flexDirection: "column", gap: 4 }}>
+              {/* Header columnas */}
+              <div style={{
+                display: "grid", gridTemplateColumns: "1fr 52px 80px 80px",
+                padding: "6px 10px",
+                fontSize: 10, fontWeight: 700, color: C.muted,
+                textTransform: "uppercase", letterSpacing: "0.07em",
+              }}>
+                <span>Producto</span>
+                <span style={{ textAlign: "center" }}>Cant.</span>
+                <span style={{ textAlign: "right" }}>P. Unit.</span>
+                <span style={{ textAlign: "right" }}>Total</span>
+              </div>
+
+              {items.map((item, i) => (
+                <div key={item.id} style={{
+                  display: "grid", gridTemplateColumns: "1fr 52px 80px 80px",
+                  alignItems: "center",
+                  padding: "10px 10px", borderRadius: 8,
+                  background: i % 2 === 0 ? C.cardB : C.card,
+                  border: `1px solid ${C.border2}`,
+                }}>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{item.producto}</span>
+                  <span style={{
+                    textAlign: "center", fontSize: 12, fontWeight: 800,
+                    color: "white", background: "#374151", borderRadius: 5,
+                    padding: "2px 0", margin: "0 6px",
+                  }}>
+                    {item.cantidad}
+                  </span>
+                  <span style={{ textAlign: "right", fontSize: 12, color: C.muted }}>
+                    {fmt(item.precio_unitario)}
+                  </span>
+                  <span style={{ textAlign: "right", fontSize: 13, fontWeight: 700, color: C.text }}>
+                    {fmt(item.cantidad * item.precio_unitario)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Resumen financiero */}
+          <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 14, marginTop: 14, display: "flex", flexDirection: "column", gap: 6 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", padding: "5px 0" }}>
+              <span style={{ fontSize: 13, color: C.muted }}>Subtotal</span>
+              <span style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{fmt(cuenta.subtotal)}</span>
             </div>
             {cuenta.servicio > 0 && (
-              <div style={{ display: "flex", justifyContent: "space-between", padding: "6px 0" }}>
-                <span style={{ fontSize: 13, color: "#64748b" }}>Servicio (10%)</span>
-                <span style={{ fontSize: 13, fontWeight: 600, color: "#d97706" }}>{fmt(cuenta.servicio)}</span>
+              <div style={{ display: "flex", justifyContent: "space-between", padding: "5px 0" }}>
+                <span style={{ fontSize: 13, color: C.muted }}>Servicio (10%)</span>
+                <span style={{ fontSize: 13, fontWeight: 600, color: C.amber }}>{fmt(cuenta.servicio)}</span>
               </div>
             )}
             <div style={{
               display: "flex", justifyContent: "space-between",
               padding: "12px 16px", marginTop: 4,
-              background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 10,
+              background: C.greenLt, border: `1px solid ${C.greenMid}`, borderRadius: 10,
             }}>
-              <span style={{ fontSize: 14, fontWeight: 700, color: "#15803d" }}>Total cobrado</span>
-              <span style={{ fontSize: 20, fontWeight: 800, color: "#16a34a" }}>{fmt(cuenta.total)}</span>
+              <span style={{ fontSize: 14, fontWeight: 700, color: C.green }}>Total cobrado</span>
+              <span style={{ fontSize: 20, fontWeight: 800, color: C.green }}>{fmt(cuenta.total)}</span>
             </div>
           </div>
-
         </div>
       </div>
     </div>
   );
 }
 
-
-
-
-// ── componente principal ──────────────────────────────────────────────────────
+// ── Componente principal ──────────────────────────────────────
 export default function CierreTurno() {
-  const [fecha, setFecha]               = useState(hoy());
+  const [fecha, setFecha]                 = useState(hoy());
   const [montoApertura, setMontoApertura] = useState("");
-  const [resultado, setResultado]       = useState<ResultadoCierre | null>(null);
-  const [loading, setLoading]           = useState(false);
-  const [error, setError]               = useState("");
-  const [verCuentas, setVerCuentas]     = useState(false);
-  const [verProductos, setVerProductos] = useState(false);
-  const [cuentaModal, setCuentaModal]   = useState<CuentaDetalle | null>(null);
-
+  const [resultado, setResultado]         = useState<ResultadoCierre | null>(null);
+  const [loading, setLoading]             = useState(false);
+  const [error, setError]                 = useState("");
+  const [verCuentas, setVerCuentas]       = useState(false);
+  const [verProductos, setVerProductos]   = useState(false);
+  const [cuentaModal, setCuentaModal]     = useState<CuentaDetalle | null>(null);
   const [nombreNegocio, setNombreNegocio] = useState("Mi Restaurante");
 
- useEffect(() => {
+  useEffect(() => {
     api.get("/configuracion").then(r => setNombreNegocio(r.data.nombre_negocio));
-    }, []);
-
-    
+  }, []);
 
   async function calcular() {
     setLoading(true);
@@ -317,13 +323,8 @@ export default function CierreTurno() {
     setResultado(null);
     try {
       const r = await api.get("/cierre/calcular", {
-        params: {
-          fecha,
-          monto_apertura: Number(montoApertura) || 0,
-        },
-        
+        params: { fecha, monto_apertura: Number(montoApertura) || 0 },
       });
-
       if (r.data.error) { setError(r.data.error); return; }
       setResultado(r.data);
     } catch {
@@ -339,187 +340,287 @@ export default function CierreTurno() {
 
   return (
     <div style={{
-      padding: "28px 32px",
+      padding: "20px 24px",
       fontFamily: "'Inter', system-ui, sans-serif",
-      background: "#f1f5f3",
+      background: C.bg,
       height: "100vh",
       display: "flex",
       flexDirection: "column",
       overflow: "hidden",
       boxSizing: "border-box",
+      color: C.text,
     }}>
 
-      {/* modal detalle cuenta */}
+      {/* Modal detalle cuenta */}
       {cuentaModal && (
         <ModalDetalleCuenta cuenta={cuentaModal} onClose={() => setCuentaModal(null)} />
       )}
 
-      {/* HEADER */}
-      <div style={{ marginBottom: 24, flexShrink: 0 }}>
-        <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: "#0f1f1a",
-                     display: "flex", alignItems: "center", gap: 10 }}>
-          🏦 Cierre de Turno
-        </h1>
-        <p style={{ margin: "4px 0 0", fontSize: 13, color: "#94a3b8" }}>
-          Seleccione la fecha del turno para ver el resumen completo
-        </p>
+      {/* ── HEADER ── */}
+      <div style={{
+        marginBottom: 18,
+        flexShrink: 0,
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        paddingBottom: 16,
+        borderBottom: `1px solid ${C.border}`,
+      }}>
+        <div style={{
+          width: 36, height: 36, borderRadius: 9,
+          background: C.greenLt, border: `1px solid ${C.greenMid}`,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          color: C.green, flexShrink: 0,
+        }}>
+          <Landmark size={18} />
+        </div>
+        <div>
+          <h1 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: C.slate, letterSpacing: "-0.3px" }}>
+            Cierre de Turno
+          </h1>
+          <p style={{ margin: "1px 0 0", fontSize: 11, color: C.muted }}>
+            Seleccioná la fecha del turno para ver el resumen completo
+          </p>
+        </div>
       </div>
 
-      {/* FORMULARIO */}
+      {/* ── FORMULARIO ── */}
       <div style={{
-        background: "white", borderRadius: 16, border: "1px solid #e2e8f0",
-        padding: "24px 28px", marginBottom: 24,
-        display: "flex", alignItems: "flex-end", gap: 16, flexWrap: "wrap",
+        background: C.card,
+        borderRadius: 12,
+        border: `1px solid ${C.border}`,
+        padding: "18px 22px",
+        marginBottom: 16,
+        display: "flex",
+        alignItems: "flex-end",
+        gap: 14,
+        flexWrap: "wrap",
         flexShrink: 0,
+        boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
       }}>
+        {/* Fecha */}
         <div>
-          <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#334155",
-                          textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 6 }}>
-            Fecha del turno
+          <label style={{
+            display: "flex", alignItems: "center", gap: 5,
+            fontSize: 10, fontWeight: 700, color: C.muted,
+            textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 7,
+          }}>
+            <CalendarDays size={11} /> Fecha del turno
           </label>
           <input
             type="date"
             value={fecha}
             onChange={e => setFecha(e.target.value)}
-            style={{ padding: "11px 14px", borderRadius: 10, border: "1px solid #d1d5db",
-                     fontSize: 14, fontWeight: 600, color: "#1f2937" }}
+            style={{
+              padding: "9px 12px", borderRadius: 8,
+              border: `1px solid ${C.border}`,
+              fontSize: 13, fontWeight: 600, color: C.text,
+              background: C.card, outline: "none",
+            }}
           />
         </div>
 
+        {/* Apertura */}
         <div>
-          <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#334155",
-                          textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 6 }}>
-            Efectivo en caja al abrir (opcional)
+          <label style={{
+            display: "flex", alignItems: "center", gap: 5,
+            fontSize: 10, fontWeight: 700, color: C.muted,
+            textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 7,
+          }}>
+            <Wallet size={11} /> Efectivo apertura (opcional)
           </label>
           <div style={{ position: "relative" }}>
-            <span style={{ position: "absolute", left: 12, top: "50%",
-                           transform: "translateY(-50%)", color: "#94a3b8", fontWeight: 700 }}>₡</span>
+            <span style={{
+              position: "absolute", left: 11, top: "50%",
+              transform: "translateY(-50%)", color: C.dim, fontWeight: 700, fontSize: 13,
+              userSelect: "none",
+            }}>₡</span>
             <input
               type="number"
               value={montoApertura}
               onChange={e => setMontoApertura(e.target.value)}
               placeholder="0"
-              style={{ padding: "11px 14px 11px 28px", borderRadius: 10,
-                       border: "1px solid #d1d5db", fontSize: 14, fontWeight: 600,
-                       color: "#1f2937", width: 180 }}
+              style={{
+                padding: "9px 12px 9px 26px", borderRadius: 8,
+                border: `1px solid ${C.border}`,
+                fontSize: 13, fontWeight: 600, color: C.text,
+                width: 180, outline: "none", background: C.card,
+              }}
             />
           </div>
         </div>
 
+        {/* Botón calcular */}
         <button
           onClick={calcular}
           disabled={loading}
           style={{
-            background: loading ? "#94a3b8" : "linear-gradient(135deg, #0f1f1a, #16241f)",
-            color: "white", border: "none", padding: "12px 28px",
-            borderRadius: 10, fontWeight: 800, fontSize: 14, cursor: "pointer",
-            boxShadow: "0 4px 12px rgba(0,0,0,0.2)",
+            display: "flex", alignItems: "center", gap: 7,
+            background: loading ? C.dimB : C.slate,
+            color: "white", border: "none",
+            padding: "10px 22px", borderRadius: 9,
+            fontWeight: 800, fontSize: 13, cursor: loading ? "default" : "pointer",
+            letterSpacing: "0.01em",
+            boxShadow: loading ? "none" : "0 2px 8px rgba(0,0,0,0.15)",
+            transition: "all 0.15s",
           }}
         >
-          {loading ? "Calculando…" : "📊 Ver Cierre"}
+          <TrendingUp size={14} />
+          {loading ? "Calculando…" : "Ver cierre"}
         </button>
       </div>
 
-      {/* ERROR */}
+      {/* ── ERROR ── */}
       {error && (
-        <div style={{ marginBottom: 20, padding: "14px 18px", background: "#fef2f2",
-                      border: "1px solid #fecaca", borderRadius: 10, color: "#dc2626",
-                      fontWeight: 600, fontSize: 13 }}>
-          ⚠️ {error}
+        <div style={{
+          marginBottom: 14,
+          display: "flex", alignItems: "center", gap: 8,
+          padding: "12px 16px",
+          background: C.redLt, border: `1px solid ${C.redMid}`,
+          borderRadius: 10, color: C.red, fontWeight: 600, fontSize: 13,
+          flexShrink: 0,
+        }}>
+          <AlertTriangle size={15} /> {error}
         </div>
       )}
 
-      {/* RESULTADO */}
+      {/* ── RESULTADO ── */}
       {resultado && (
         <div style={{
-          display: "flex", flexDirection: "column", gap: 20,
+          display: "flex", flexDirection: "column", gap: 14,
           flex: 1, minHeight: 0, overflowY: "auto",
           paddingBottom: 28,
         }}>
 
-          {/* BANDA DE TURNO */}
+          {/* Banda de turno */}
           <div style={{
-            background: "linear-gradient(135deg, #1e3a2f, #0f1f1a)",
-            borderRadius: 16, padding: "20px 28px", color: "white",
-            display: "flex", alignItems: "center", justifyContent: "space-between",
-            flexWrap: "wrap", gap: 12,
+            background: C.slate,
+            borderRadius: 12,
+            padding: "18px 24px",
+            color: "white",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            flexWrap: "wrap",
+            gap: 12,
+            boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
           }}>
-            
-
-
             <div>
-              <div style={{ fontSize: 11, opacity: 0.55, fontWeight: 700,
-                            letterSpacing: "0.1em", textTransform: "uppercase" }}>
+              <div style={{
+                fontSize: 10, opacity: 0.45, fontWeight: 700,
+                letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 4,
+              }}>
                 Turno
               </div>
-              <div style={{ fontSize: 18, fontWeight: 800, marginTop: 2 }}>
+              <div style={{ fontSize: 15, fontWeight: 700, display: "flex", alignItems: "center", gap: 6 }}>
+                <Clock size={14} style={{ opacity: 0.6 }} />
                 {fmtFechaHora(resultado.turno_inicio)} → {fmtFechaHora(resultado.turno_fin)}
               </div>
             </div>
-            <div style={{ textAlign: "right" }}>
-              <div style={{ fontSize: 11, opacity: 0.55, fontWeight: 700,
-                            letterSpacing: "0.1em", textTransform: "uppercase" }}>
-                Total ventas
-              </div>
-              <div style={{ fontSize: 32, fontWeight: 800, letterSpacing: "-0.02em" }}>
-                {fmt(resultado.total_ventas)}
-              </div>
-            </div>
 
-            
+            <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+              {/* Total ventas */}
+              <div style={{ textAlign: "right" }}>
+                <div style={{ fontSize: 10, opacity: 0.45, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 4 }}>
+                  Total ventas
+                </div>
+                <div style={{ fontSize: 28, fontWeight: 900, letterSpacing: "-0.02em", lineHeight: 1 }}>
+                  {fmt(resultado.total_ventas)}
+                </div>
+              </div>
+
+              {/* Botón imprimir — aquí tiene contexto, no en el grid de KPIs */}
+              <button
+                onClick={() => imprimirReporteCierre(resultado, nombreNegocio)}
+                title="Imprimir / Guardar PDF"
+                style={{
+                  display: "flex", alignItems: "center", gap: 7,
+                  padding: "9px 16px", borderRadius: 8,
+                  background: "rgba(255,255,255,0.08)",
+                  border: "1px solid rgba(255,255,255,0.15)",
+                  color: "rgba(255,255,255,0.85)",
+                  fontSize: 12, fontWeight: 700, cursor: "pointer",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                <Printer size={14} /> Imprimir
+              </button>
+            </div>
           </div>
 
-          {/* KPI CARDS */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(170px, 1fr))", gap: 14 }}>
+          {/* KPI cards */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 10 }}>
             {[
-              { label: "Cuentas cobradas",   value: String(resultado.total_cuentas), icon: "🧾", color: "#2563eb", bg: "#eff6ff", border: "#bfdbfe" },
-              { label: "Ticket promedio",     value: fmt(resultado.ticket_promedio),  icon: "🎯", color: "#7c3aed", bg: "#faf5ff", border: "#ddd6fe" },
-              { label: "Subtotal (sin 10%)",  value: fmt(resultado.total_subtotal),   icon: "🧮", color: "#0891b2", bg: "#ecfeff", border: "#a5f3fc" },
-              { label: "Total servicio 10%",  value: fmt(resultado.total_servicio),   icon: "✂️", color: "#d97706", bg: "#fffbeb", border: "#fde68a" },
+              {
+                label: "Cuentas cobradas",
+                value: String(resultado.total_cuentas),
+                icon: <Users size={16} />,
+                color: C.blue, bg: C.blueLt, border: C.blueB,
+              },
+              {
+                label: "Ticket promedio",
+                value: fmt(resultado.ticket_promedio),
+                icon: <Target size={16} />,
+                color: C.violet, bg: C.violetLt, border: C.violetMid,
+              },
+              {
+                label: "Subtotal (sin 10%)",
+                value: fmt(resultado.total_subtotal),
+                icon: <Calculator size={16} />,
+                color: C.cyan, bg: C.cyanLt, border: C.cyanMid,
+              },
+              {
+                label: "Servicio (10%)",
+                value: fmt(resultado.total_servicio),
+                icon: <Scissors size={16} />,
+                color: C.amber, bg: C.amberLt, border: C.amberB,
+              },
             ].map(k => (
-              <div key={k.label} style={{ background: k.bg, border: `1px solid ${k.border}`,
-                                          borderRadius: 14, padding: "18px 20px" }}>
-                <div style={{ fontSize: 24, marginBottom: 6 }}>{k.icon}</div>
-                <div style={{ fontSize: 22, fontWeight: 800, color: k.color }}>{k.value}</div>
-                <div style={{ fontSize: 11.5, color: k.color, opacity: 0.7,
-                              fontWeight: 600, marginTop: 3 }}>{k.label}</div>
+              <div key={k.label} style={{
+                background: k.bg,
+                border: `1px solid ${k.border}`,
+                borderRadius: 12,
+                overflow: "hidden",
+                boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
+              }}>
+                <div style={{ padding: "14px 16px 12px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
+                    <span style={{ color: k.color, opacity: 0.7 }}>{k.icon}</span>
+                    <span style={{
+                      fontSize: 10, fontWeight: 700, color: k.color,
+                      textTransform: "uppercase", letterSpacing: "0.08em", opacity: 0.8,
+                    }}>{k.label}</span>
+                  </div>
+                  <div style={{ fontSize: 20, fontWeight: 900, color: k.color, letterSpacing: "-0.3px", lineHeight: 1 }}>
+                    {k.value}
+                  </div>
+                </div>
+                <div style={{ height: 2, background: k.color, opacity: 0.2 }} />
               </div>
             ))}
-
-
-            {resultado && (
-            <button
-                onClick={() => imprimirReporteCierre(resultado, nombreNegocio)}
-                style={{
-                background: "white",
-                border: "1px solid #d1d5db",
-                padding: "12px 22px",
-                borderRadius: 10,
-                fontWeight: 700,
-                fontSize: 14,
-                cursor: "pointer",
-                color: "#0f1f1a",
-                }}
-            >
-                🖨️ Imprimir / Guardar PDF
-            </button>
-            )}
-
-
-
           </div>
 
-          {/* MÉTODOS DE PAGO + ARQUEO */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-            <div style={{ background: "white", borderRadius: 14, padding: "22px 24px",
-                          border: "1px solid #e2e8f0" }}>
-              <h3 style={{ margin: "0 0 18px", fontSize: 14, fontWeight: 800, color: "#1f2937" }}>
-                💳 Desglose por método
-              </h3>
+          {/* Métodos de pago + Arqueo */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+
+            {/* Desglose por método */}
+            <div style={{
+              background: C.card, borderRadius: 12,
+              border: `1px solid ${C.border}`,
+              padding: "18px 20px",
+              boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
+            }}>
+              <div style={{
+                display: "flex", alignItems: "center", gap: 7,
+                fontSize: 13, fontWeight: 800, color: C.text, marginBottom: 16,
+              }}>
+                <CreditCard size={15} color={C.muted} /> Desglose por método
+              </div>
+
               {[
                 { metodo: "Efectivo", monto: resultado.total_efectivo },
-                { metodo: "Tarjeta",  monto: resultado.total_tarjeta },
-                { metodo: "SINPE",    monto: resultado.total_sinpe },
+                { metodo: "Tarjeta",  monto: resultado.total_tarjeta  },
+                { metodo: "SINPE",    monto: resultado.total_sinpe    },
               ].filter(m => m.monto > 0).map(m => {
                 const col = METODO_COLOR[m.metodo] ?? METODO_COLOR.Efectivo;
                 const pct = resultado.total_ventas
@@ -528,15 +629,26 @@ export default function CierreTurno() {
                 return (
                   <div key={m.metodo} style={{ marginBottom: 14 }}>
                     <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
-                      <span style={{ fontSize: 13.5, fontWeight: 700, color: "#1f2937" }}>
-                        {METODO_ICON[m.metodo]} {m.metodo}
+                      <span style={{
+                        display: "flex", alignItems: "center", gap: 6,
+                        fontSize: 13, fontWeight: 700, color: C.text,
+                      }}>
+                        <span style={{
+                          display: "inline-flex", alignItems: "center", gap: 4,
+                          padding: "2px 8px", borderRadius: 5,
+                          background: col.bg, color: col.color,
+                          border: `1px solid ${col.border}`,
+                          fontSize: 11, fontWeight: 700,
+                        }}>
+                          {METODO_ICON[m.metodo]} {m.metodo}
+                        </span>
                       </span>
-                      <span style={{ fontSize: 13.5, fontWeight: 800, color: col.color }}>
+                      <span style={{ fontSize: 13, fontWeight: 800, color: col.color }}>
                         {fmt(m.monto)}{" "}
-                        <span style={{ fontSize: 11, fontWeight: 400, color: "#94a3b8" }}>({pct}%)</span>
+                        <span style={{ fontSize: 11, fontWeight: 400, color: C.dim }}>({pct}%)</span>
                       </span>
                     </div>
-                    <div style={{ background: "#f1f5f9", borderRadius: 99, height: 8 }}>
+                    <div style={{ background: C.border, borderRadius: 99, height: 6 }}>
                       <div style={{
                         width: `${pct}%`, height: "100%",
                         background: col.color, borderRadius: 99, transition: "width 0.4s",
@@ -547,16 +659,30 @@ export default function CierreTurno() {
               })}
             </div>
 
-            {/* ARQUEO DE CAJA */}
-            <div style={{ background: "white", borderRadius: 14, padding: "22px 24px",
-                          border: "1px solid #e2e8f0" }}>
-              <h3 style={{ margin: "0 0 18px", fontSize: 14, fontWeight: 800, color: "#1f2937" }}>
-                🧮 Arqueo de caja
-              </h3>
+            {/* Arqueo de caja */}
+            <div style={{
+              background: C.card, borderRadius: 12,
+              border: `1px solid ${C.border}`,
+              padding: "18px 20px",
+              boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
+            }}>
+              <div style={{
+                display: "flex", alignItems: "center", gap: 7,
+                fontSize: 13, fontWeight: 800, color: C.text, marginBottom: 16,
+              }}>
+                <Calculator size={15} color={C.muted} /> Arqueo de caja
+              </div>
+
               {resultado.monto_apertura === 0 ? (
-                <p style={{ fontSize: 13, color: "#94a3b8", margin: 0 }}>
-                  Ingrese el monto de apertura arriba para ver el arqueo completo.
-                </p>
+                <div style={{
+                  display: "flex", flexDirection: "column", alignItems: "center",
+                  gap: 8, padding: "16px 0", color: C.muted, textAlign: "center",
+                }}>
+                  <Wallet size={28} color={C.dimB} />
+                  <p style={{ margin: 0, fontSize: 13 }}>
+                    Ingresá el monto de apertura arriba para ver el arqueo completo.
+                  </p>
+                </div>
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                   {[
@@ -567,115 +693,146 @@ export default function CierreTurno() {
                     <div key={row.label} style={{
                       display: "flex", justifyContent: "space-between",
                       padding: "9px 12px", borderRadius: 8,
-                      background: row.bold ? "#f0fdf4" : "#f8fafc",
-                      border: row.bold ? "1px solid #bbf7d0" : "1px solid transparent",
+                      background: row.bold ? C.greenLt : C.bg,
+                      border: `1px solid ${row.bold ? C.greenMid : C.border2}`,
                     }}>
-                      <span style={{ fontSize: 13, color: "#475569" }}>{row.label}</span>
-                      <span style={{ fontSize: 13, fontWeight: row.bold ? 800 : 600,
-                                     color: row.bold ? "#16a34a" : "#1f2937" }}>
-                        {row.value}
-                      </span>
+                      <span style={{ fontSize: 13, color: C.muted }}>{row.label}</span>
+                      <span style={{
+                        fontSize: 13,
+                        fontWeight: row.bold ? 800 : 600,
+                        color: row.bold ? C.green : C.text,
+                      }}>{row.value}</span>
                     </div>
                   ))}
-                  <p style={{ margin: "10px 0 0", fontSize: 12, color: "#94a3b8" }}>
-                    Al finalizar, cuente el efectivo físico y compare con la caja esperada.
+                  <p style={{ margin: "8px 0 0", fontSize: 11, color: C.dim }}>
+                    Al finalizar, contá el efectivo físico y comparalo con la caja esperada.
                   </p>
                 </div>
               )}
             </div>
           </div>
 
-          {/* TOP PRODUCTOS — colapsable con scroll */}
+          {/* Top productos — colapsable */}
           {resultado.top_productos.length > 0 && (
-            <div style={{ background: "white", borderRadius: 14, border: "1px solid #e2e8f0",
-                          overflow: "hidden" }}>
+            <div style={{
+              background: C.card, borderRadius: 12,
+              border: `1px solid ${C.border}`,
+              overflow: "hidden",
+              boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
+            }}>
               <button
                 onClick={() => setVerProductos(v => !v)}
                 style={{
-                  width: "100%", padding: "16px 24px",
+                  width: "100%", padding: "14px 20px",
                   display: "flex", justifyContent: "space-between", alignItems: "center",
                   background: "transparent", border: "none", cursor: "pointer",
                 }}
               >
-                <span style={{ fontSize: 14, fontWeight: 800, color: "#1f2937" }}>
-                  🏆 Productos del turno ({resultado.top_productos.length})
+                <span style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 13, fontWeight: 800, color: C.text }}>
+                  <Trophy size={15} color={C.amber} />
+                  Productos del turno
+                  <span style={{
+                    fontSize: 11, fontWeight: 700, color: C.muted,
+                    background: C.bg, border: `1px solid ${C.border}`,
+                    padding: "1px 8px", borderRadius: 99,
+                  }}>{resultado.top_productos.length}</span>
                 </span>
-                <span style={{ fontSize: 18, color: "#94a3b8" }}>{verProductos ? "▲" : "▼"}</span>
+                {verProductos
+                  ? <ChevronUp size={16} color={C.muted} />
+                  : <ChevronDown size={16} color={C.muted} />}
               </button>
 
               {verProductos && (
                 <div style={{
-                  borderTop: "1px solid #f1f5f9",
-                  maxHeight: 320,
-                  overflowY: "auto",
+                  borderTop: `1px solid ${C.border2}`,
+                  maxHeight: 320, overflowY: "auto",
                   padding: "10px 16px 16px",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 8,
+                  display: "flex", flexDirection: "column", gap: 6,
                 }}>
-                  {resultado.top_productos.map((p, i) => (
-                    <div key={p.nombre} style={{
-                      display: "flex", alignItems: "center", gap: 12,
-                      padding: "10px 14px",
-                      background: i === 0 ? "#fffbeb" : "#f8fafc",
-                      borderRadius: 10,
-                      border: `1px solid ${i === 0 ? "#fde68a" : "#f1f5f9"}`,
-                    }}>
-                      <span style={{
-                        width: 26, height: 26, borderRadius: 8, fontSize: 12, fontWeight: 800,
-                        background: i === 0 ? "#fbbf24" : i === 1 ? "#94a3b8" : i === 2 ? "#c2703e" : "#e2e8f0",
-                        color: i < 3 ? "white" : "#64748b",
-                        display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
-                      }}>{i + 1}</span>
-                      <span style={{ flex: 1, fontSize: 13.5, fontWeight: 600, color: "#1f2937" }}>
-                        {p.nombre}
-                      </span>
-                      <span style={{ fontSize: 12, color: "#64748b" }}>{p.cantidad} uds</span>
-                      <span style={{ fontSize: 13, fontWeight: 700, color: "#16a34a" }}>
-                        {fmt(p.total)}
-                      </span>
-                    </div>
-                  ))}
+                  {resultado.top_productos.map((p, i) => {
+                    const max = resultado.top_productos[0]?.total ?? 1;
+                    const medalBg  = i === 0 ? "#ca8a04" : i === 1 ? "#9ca3af" : i === 2 ? "#b45309" : C.border;
+                    const medalTxt = i < 3 ? "#fff" : C.muted;
+                    return (
+                      <div key={p.nombre} style={{
+                        display: "grid",
+                        gridTemplateColumns: "28px 1fr 64px 90px",
+                        alignItems: "center", gap: 10,
+                        padding: "9px 12px", borderRadius: 9,
+                        background: i === 0 ? "#fefce8" : C.bg,
+                        border: `1px solid ${i === 0 ? "#fde68a" : C.border}`,
+                      }}>
+                        <div style={{
+                          width: 24, height: 24, borderRadius: 6,
+                          background: medalBg,
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                          fontSize: 10, fontWeight: 800, color: medalTxt, flexShrink: 0,
+                        }}>{i + 1}</div>
+                        <div>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: C.text, marginBottom: 4 }}>
+                            {p.nombre}
+                          </div>
+                          <div style={{ background: C.border, borderRadius: 99, height: 3 }}>
+                            <div style={{
+                              width: `${(p.total / max) * 100}%`, height: "100%",
+                              borderRadius: 99,
+                              background: i === 0 ? "#ca8a04" : C.green,
+                              transition: "width 0.5s",
+                            }} />
+                          </div>
+                        </div>
+                        <span style={{ fontSize: 11, color: C.muted, textAlign: "right" }}>{p.cantidad} uds</span>
+                        <span style={{ fontSize: 13, fontWeight: 800, color: C.green, textAlign: "right" }}>{fmt(p.total)}</span>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
           )}
 
-          {/* DETALLE CUENTAS — colapsable con botón ver por cuenta */}
+          {/* Cuentas del turno — colapsable */}
           <div style={{
-            background: "white", borderRadius: 14, border: "1px solid #e2e8f0",
-            overflow: "hidden", display: "flex", flexDirection: "column",
+            background: C.card, borderRadius: 12,
+            border: `1px solid ${C.border}`,
+            overflow: "hidden",
+            boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
+            display: "flex", flexDirection: "column",
             flex: verCuentas ? "1" : "0 0 auto", minHeight: 0,
           }}>
             <button
               onClick={() => setVerCuentas(v => !v)}
               style={{
-                width: "100%", padding: "16px 24px",
+                width: "100%", padding: "14px 20px",
                 display: "flex", justifyContent: "space-between", alignItems: "center",
                 background: "transparent", border: "none", cursor: "pointer",
               }}
             >
-              <span style={{ fontSize: 14, fontWeight: 800, color: "#1f2937" }}>
-                🧾 Cuentas del turno ({resultado.total_cuentas})
+              <span style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 13, fontWeight: 800, color: C.text }}>
+                <Receipt size={15} color={C.blue} />
+                Cuentas del turno
+                <span style={{
+                  fontSize: 11, fontWeight: 700, color: C.muted,
+                  background: C.bg, border: `1px solid ${C.border}`,
+                  padding: "1px 8px", borderRadius: 99,
+                }}>{resultado.total_cuentas}</span>
               </span>
-              <span style={{ fontSize: 18, color: "#94a3b8" }}>{verCuentas ? "▲" : "▼"}</span>
+              {verCuentas
+                ? <ChevronUp size={16} color={C.muted} />
+                : <ChevronDown size={16} color={C.muted} />}
             </button>
 
             {verCuentas && (
-              <div style={{
-                borderTop: "1px solid #f1f5f9",
-                flex: 1, minHeight: 0, overflowY: "auto",
-              }}>
+              <div style={{ borderTop: `1px solid ${C.border2}`, flex: 1, minHeight: 0, overflowY: "auto" }}>
                 <table style={{ width: "100%", borderCollapse: "collapse" }}>
                   <thead>
-                    <tr style={{ background: "#f8fafc" }}>
+                    <tr style={{ background: C.bg, borderBottom: `1px solid ${C.border}` }}>
                       {["#", "Mesa", "Hora cierre", "Método", "Subtotal", "Servicio", "Total", ""].map(h => (
-                        <th key={h} style={{ padding: "10px 14px", textAlign: "left",
-                                             fontSize: 11, fontWeight: 700, color: "#64748b",
-                                             textTransform: "uppercase", letterSpacing: "0.05em",
-                                             borderBottom: "1px solid #e2e8f0" }}>
-                          {h}
-                        </th>
+                        <th key={h} style={{
+                          padding: "10px 14px", textAlign: "left",
+                          fontSize: 10, fontWeight: 700, color: C.muted,
+                          textTransform: "uppercase", letterSpacing: "0.08em",
+                        }}>{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -683,72 +840,81 @@ export default function CierreTurno() {
                     {resultado.cuentas.map((c, i) => {
                       const col = METODO_COLOR[c.metodo] ?? METODO_COLOR.Efectivo;
                       return (
-                        <tr key={c.id} style={{
-                          borderTop: "1px solid #f1f5f9",
-                          background: i % 2 === 0 ? "white" : "#fafafa",
-                        }}>
-                          <td style={{ padding: "10px 14px", fontSize: 12, color: "#94a3b8" }}>#{c.id}</td>
-                          <td style={{ padding: "10px 14px", fontSize: 13, fontWeight: 600, color: "#1f2937" }}>
-                            🍽️ {c.mesa}
-                          </td>
-                          <td style={{ padding: "10px 14px", fontSize: 12.5, color: "#64748b" }}>
-                            {fmtHora(c.fecha_cierre)}
+                        <tr
+                          key={c.id}
+                          style={{
+                            borderTop: `1px solid ${C.border2}`,
+                            background: "transparent",
+                            transition: "background 0.1s",
+                          }}
+                          onMouseEnter={e => (e.currentTarget.style.background = C.greenLt)}
+                          onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                        >
+                          <td style={{ padding: "10px 14px", fontSize: 11, color: C.dim, fontFamily: "monospace" }}>
+                            #{c.id}
                           </td>
                           <td style={{ padding: "10px 14px" }}>
-                            <span style={{ padding: "3px 9px", borderRadius: 99, fontSize: 11,
-                                           fontWeight: 700, background: col.bg,
-                                           color: col.color, border: `1px solid ${col.border}` }}>
-                              {METODO_ICON[c.metodo] ?? "💰"} {c.metodo}
+                            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                              <UtensilsCrossed size={12} color={C.muted} />
+                              <span style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{c.mesa}</span>
+                            </div>
+                          </td>
+                          <td style={{ padding: "10px 14px" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, color: C.muted }}>
+                              <Clock size={11} /> {fmtHora(c.fecha_cierre)}
+                            </div>
+                          </td>
+                          <td style={{ padding: "10px 14px" }}>
+                            <span style={{
+                              display: "inline-flex", alignItems: "center", gap: 5,
+                              padding: "3px 9px", borderRadius: 6,
+                              fontSize: 11, fontWeight: 700,
+                              background: col.bg, color: col.color,
+                              border: `1px solid ${col.border}`,
+                            }}>
+                              {METODO_ICON[c.metodo]} {c.metodo}
                             </span>
                           </td>
-                          <td style={{ padding: "10px 14px", fontSize: 13, color: "#475569" }}>
+                          <td style={{ padding: "10px 14px", fontSize: 12, color: C.muted }}>
                             {fmt(c.subtotal)}
                           </td>
-                          <td style={{ padding: "10px 14px", fontSize: 13,
-                                       color: c.servicio > 0 ? "#d97706" : "#94a3b8" }}>
+                          <td style={{ padding: "10px 14px", fontSize: 12, color: c.servicio > 0 ? C.amber : C.dimB }}>
                             {c.servicio > 0 ? fmt(c.servicio) : "—"}
                           </td>
-                          <td style={{ padding: "10px 14px", fontSize: 13,
-                                       fontWeight: 800, color: "#16a34a" }}>
+                          <td style={{ padding: "10px 14px", fontSize: 13, fontWeight: 800, color: C.green }}>
                             {fmt(c.total)}
                           </td>
                           <td style={{ padding: "10px 14px" }}>
                             <button
                               onClick={() => setCuentaModal(c)}
                               style={{
-                                padding: "5px 12px",
-                                borderRadius: 7,
-                                border: "1px solid #e2e8f0",
-                                background: "white",
-                                color: "#475569",
-                                fontSize: 12,
-                                fontWeight: 700,
-                                cursor: "pointer",
+                                display: "flex", alignItems: "center", gap: 5,
+                                padding: "5px 10px", borderRadius: 7,
+                                border: `1px solid ${C.border}`,
+                                background: C.bg, color: C.slate,
+                                fontSize: 12, fontWeight: 600, cursor: "pointer",
                                 whiteSpace: "nowrap",
                               }}
                             >
-                              Ver detalle
+                              <Eye size={12} /> Ver
                             </button>
                           </td>
                         </tr>
                       );
                     })}
-                    {/* FILA TOTAL */}
-                    <tr style={{ background: "#f0fdf4", borderTop: "2px solid #bbf7d0" }}>
-                      <td colSpan={4} style={{ padding: "12px 14px", fontSize: 13,
-                                               fontWeight: 800, color: "#15803d" }}>
+
+                    {/* Fila total */}
+                    <tr style={{ background: C.greenLt, borderTop: `2px solid ${C.greenMid}` }}>
+                      <td colSpan={4} style={{ padding: "12px 14px", fontSize: 12, fontWeight: 800, color: C.green }}>
                         TOTAL DEL TURNO
                       </td>
-                      <td style={{ padding: "12px 14px", fontSize: 13,
-                                   fontWeight: 800, color: "#15803d" }}>
+                      <td style={{ padding: "12px 14px", fontSize: 12, fontWeight: 800, color: C.green }}>
                         {fmt(resultado.total_subtotal)}
                       </td>
-                      <td style={{ padding: "12px 14px", fontSize: 13,
-                                   fontWeight: 800, color: "#d97706" }}>
+                      <td style={{ padding: "12px 14px", fontSize: 12, fontWeight: 800, color: C.amber }}>
                         {fmt(resultado.total_servicio)}
                       </td>
-                      <td style={{ padding: "12px 14px", fontSize: 14,
-                                   fontWeight: 800, color: "#16a34a" }}>
+                      <td style={{ padding: "12px 14px", fontSize: 14, fontWeight: 900, color: C.green }}>
                         {fmt(resultado.total_ventas)}
                       </td>
                       <td />

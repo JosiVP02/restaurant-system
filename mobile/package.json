@@ -7,7 +7,7 @@
     "dev": "vite",
     "lint": "eslint .",
     "preview": "vite preview",
-    "build": "tsc -b && vite build && node scripts/copy-dist.js"
+    "build": "tsc -b && vite build && node scripts/copy-dist.cjs"
   },
   "dependencies": {
     "axios": "^1.18.0",

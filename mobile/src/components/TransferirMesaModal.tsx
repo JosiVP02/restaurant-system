@@ -1,8 +1,11 @@
 // src/components/TransferirMesaModal.tsx
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { api } from "../services/api";
 import ConfirmModal from "./ConfirmModal";
 import type { Mesa } from "../services";
+
+import { useWebSocket } from "../hooks/useWebSocket";
+
 
 interface Props {
   cuentaId: number;
@@ -25,57 +28,57 @@ export default function TransferirMesaModal({ cuentaId, mesaActual, onClose, onT
 
   useEffect(() => { mesaDestinoRef.current = mesaDestino; }, [mesaDestino]);
 
-  useEffect(() => {
-    mountedRef.current = true;
 
-    async function fetchMesas() {
-      if (transfiriendoRef.current) return;
-      try {
-        const res = await api.get("/mesas", {
-          headers: { "Cache-Control": "no-cache", "Pragma": "no-cache" },
-          params: { _t: Date.now() },
-        });
-        if (!mountedRef.current) return;
-        const libres: Mesa[] = res.data.filter((m: Mesa) => m.estado === "LIBRE");
-        setMesas(libres);
-        setFetchCount(c => c + 1);
-        setErrorMsg(null);
-        const selActual = mesaDestinoRef.current;
-        if (selActual && !libres.some((m) => String(m.id) === selActual)) {
-          setMesaDestino("");
-          setErrorMsg("La mesa seleccionada ya fue ocupada.");
-        }
-      } catch (err) {
-        if (!mountedRef.current) return;
-        console.error("Error cargando mesas:", err);
-        setErrorMsg("No se pudo cargar la lista de mesas.");
-      }
+const fetchMesas = useCallback(async () => {
+   console.log("[TransferirModal] fetchMesas llamado");
+  if (transfiriendoRef.current) return;
+  try {
+    const res = await api.get("/mesas", {
+      headers: { "Cache-Control": "no-cache", "Pragma": "no-cache" },
+      params: { _t: Date.now() },
+    });
+    if (!mountedRef.current) return;
+    const libres: Mesa[] = res.data.filter((m: Mesa) => m.estado === "LIBRE");
+    setMesas(libres);
+    setFetchCount(c => c + 1);
+    setErrorMsg(null);
+    const selActual = mesaDestinoRef.current;
+    if (selActual && !libres.some((m) => String(m.id) === selActual)) {
+      setMesaDestino("");
+      setErrorMsg("La mesa seleccionada ya fue ocupada.");
     }
+  } catch (err) {
+    if (!mountedRef.current) return;
+    console.error("Error cargando mesas:", err);
+    setErrorMsg("No se pudo cargar la lista de mesas.");
+  }
+}, []);
 
-    fetchMesas();
-    let intervalo = setInterval(fetchMesas, 2000);
+useWebSocket(["mesas_actualizadas"], fetchMesas);
+console.log("[TransferirModal] hook registrado");
 
-    function handleVisibility() {
-      if (document.visibilityState === "visible") {
-        fetchMesas();
-        clearInterval(intervalo);
-        intervalo = setInterval(fetchMesas, 2000);
-      } else {
-        clearInterval(intervalo);
-      }
-    }
+useEffect(() => {
+  mountedRef.current = true;
 
-    document.addEventListener("visibilitychange", handleVisibility);
-    window.addEventListener("focus", fetchMesas);
+  fetchMesas();
 
-    return () => {
-      mountedRef.current = false;
-      clearInterval(intervalo);
-      document.removeEventListener("visibilitychange", handleVisibility);
-      window.removeEventListener("focus", fetchMesas);
-    };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  function handleVisibility() {
+    if (document.visibilityState === "visible") fetchMesas();
+  }
+
+  document.addEventListener("visibilitychange", handleVisibility);
+  window.addEventListener("focus", fetchMesas);
+
+  return () => {
+    mountedRef.current = false;
+    document.removeEventListener("visibilitychange", handleVisibility);
+    window.removeEventListener("focus", fetchMesas);
+  };
+// eslint-disable-next-line react-hooks/exhaustive-deps
+}, []);
+
+  
+
 
   async function transferir() {
     if (!mesaDestino) return;

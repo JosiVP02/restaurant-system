@@ -25,6 +25,11 @@ import TransferirMesaModal from "../components/TransferirMesaModal";
 import ActividadMesaModal from "../components/ActividadMesaModal";
 import type { DetalleCuenta, ConfirmState } from "../services";
 
+
+import { useWebSocket } from "../hooks/useWebSocket";
+
+
+
 function btnEstilo(background: string, color: string): CSSProperties {
   return {
     background,
@@ -120,20 +125,18 @@ export default function CuentaMesa() {
 
     
 
-useEffect(() => {
-  if (!mesaId) return;
-
+useWebSocket(["cuenta_actualizada", "mesas_actualizadas"], () => {
   obtenerCuenta();
   cargarMesa();
+});
 
-  const intervalo = setInterval(() => {
-    obtenerCuenta();
-    cargarMesa();
-  }, 2000);
-
-  return () => clearInterval(intervalo);
-
+useEffect(() => {
+  if (!mesaId) return;
+  obtenerCuenta();
+  cargarMesa();
 }, [mesaId, obtenerCuenta, cargarMesa]);
+
+
 
 
 

@@ -1,6 +1,12 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { api } from "../services/api";
 import ConfirmModal from "../components/ConfirmModal";
+import { useWebSocket } from "../hooks/useWebSocket";
+import {
+  ChefHat, Clock, Flame, CheckCircle2, UtensilsCrossed,
+  Trash2, AlertTriangle, Bell, FileText, ChevronRight,
+  Snowflake, Package, Brush,
+} from "lucide-react";
 
 interface OrdenCocina {
   id: number;
@@ -12,36 +18,84 @@ interface OrdenCocina {
   estado: string;
   fecha: string;
 }
-
 interface OrdenAgrupada {
   mesa: string;
   fecha: string;
   productos: OrdenCocina[];
 }
 
-const ESTADOS: Record<string, { color: string; bg: string; icon: string; border: string }> = {
-  PENDIENTE:   { color: "#92400e", bg: "#fffbeb", icon: "⏳", border: "#fde68a" },
-  PREPARACION: { color: "#9a3412", bg: "#fff7ed", icon: "🔥", border: "#fed7aa" },
-  LISTO:       { color: "#14532d", bg: "#f0fdf4", icon: "✅", border: "#bbf7d0" },
-  ENTREGADO:   { color: "#334155", bg: "#f8fafc", icon: "🍽️", border: "#e2e8f0" },
+// ── Paleta (idéntica a Ventas/Productos/Cierre) ───────────────
+const C = {
+  bg:       "#f4f6f8",
+  card:     "#ffffff",
+  cardB:    "#f9fafb",
+  border:   "#e4e7ec",
+  border2:  "#f0f2f5",
+  green:    "#16873d",
+  greenLt:  "#f0faf4",
+  greenB:   "#a7d7b8",
+  greenMid: "#d1edd9",
+  blue:     "#2f54a0",
+  blueLt:   "#f0f4fb",
+  blueB:    "#afc1e8",
+  blueMid:  "#d5dff4",
+  amber:    "#a16207",
+  amberLt:  "#fdf8ee",
+  amberB:   "#e8c97a",
+  amberMid: "#f5e8be",
+  red:      "#b91c1c",
+  redLt:    "#fef2f2",
+  redMid:   "#fecaca",
+  slate:    "#111827",
+  slate2:   "#1f2937",
+  text:     "#1f2937",
+  muted:    "#6b7280",
+  dim:      "#9ca3af",
+  dimB:     "#d1d5db",
 };
 
-const SIGUIENTE: Record<string, { estado: string; label: string; tipo: "default" | "warning" | "danger" }> = {
-  PENDIENTE:   { estado: "PREPARACION", label: "Iniciar preparación", tipo: "warning" },
-  PREPARACION: { estado: "LISTO",       label: "Marcar como listo",   tipo: "default" },
-  LISTO:       { estado: "ENTREGADO",   label: "Confirmar entrega",   tipo: "default" },
+// ── Estados con iconos lucide ─────────────────────────────────
+const ESTADOS: Record<string, {
+  color: string; bg: string; border: string;
+  icon: React.ReactNode; label: string;
+}> = {
+  PENDIENTE:   {
+    color: C.amber,  bg: C.amberLt, border: C.amberB,
+    icon: <Clock size={13} />, label: "Pendiente",
+  },
+  PREPARACION: {
+    color: C.red,    bg: C.redLt,   border: C.redMid,
+    icon: <Flame size={13} />, label: "En preparación",
+  },
+  LISTO:       {
+    color: C.green,  bg: C.greenLt, border: C.greenB,
+    icon: <CheckCircle2 size={13} />, label: "Listo",
+  },
+  ENTREGADO:   {
+    color: C.muted,  bg: C.bg,      border: C.border,
+    icon: <UtensilsCrossed size={13} />, label: "Entregado",
+  },
 };
 
-// ─── Notificaciones ───────────────────────────────────────────
+const SIGUIENTE: Record<string, {
+  estado: string; label: string;
+  tipo: "default" | "warning" | "danger";
+  icon: React.ReactNode;
+}> = {
+  PENDIENTE:   { estado: "PREPARACION", label: "Iniciar preparación", tipo: "warning", icon: <Flame size={13} />       },
+  PREPARACION: { estado: "LISTO",       label: "Marcar como listo",   tipo: "default", icon: <CheckCircle2 size={13} /> },
+  LISTO:       { estado: "ENTREGADO",   label: "Confirmar entrega",   tipo: "default", icon: <UtensilsCrossed size={13} /> },
+};
+
+// ── Notificaciones ────────────────────────────────────────────
 function pedirPermisoNotificaciones() {
   if ("Notification" in window && Notification.permission === "default") {
     Notification.requestPermission();
   }
 }
-
 function notificarNuevaOrden(mesa: string, productos: string[]) {
   if ("Notification" in window && Notification.permission === "granted") {
-    new Notification(`🍽️ Nueva orden — Mesa ${mesa}`, {
+    new Notification(`Nueva orden — Mesa ${mesa}`, {
       body: productos.join(", "),
       icon: "/favicon.ico",
       tag: `orden-${mesa}-${Date.now()}`,
@@ -50,22 +104,18 @@ function notificarNuevaOrden(mesa: string, productos: string[]) {
 }
 
 export default function Cocina() {
-  const [ordenes, setOrdenes] = useState<OrdenCocina[]>([]);
-  const [toasts, setToasts] = useState<{ id: number; msg: string; type: "ok" | "err" }[]>([]);
-  const [confirm, setConfirm] = useState<null | {
-    titulo: string;
-    descripcion?: string;
+  const [ordenes, setOrdenes]   = useState<OrdenCocina[]>([]);
+  const [toasts, setToasts]     = useState<{ id: number; msg: string; type: "ok" | "err" }[]>([]);
+  const [confirm, setConfirm]   = useState<null | {
+    titulo: string; descripcion?: string;
     tipo?: "default" | "warning" | "danger";
-    textoConfirmar?: string;
-    onConfirmar: () => void;
+    textoConfirmar?: string; onConfirmar: () => void;
   }>(null);
-
-  // Doble confirmación para limpiar
   const [limpiarPaso, setLimpiarPaso] = useState<0 | 1 | 2>(0);
-  const [limpiando, setLimpiando] = useState(false);
+  const [limpiando, setLimpiando]     = useState(false);
 
   const ordenesConocidasRef = useRef<Set<number> | null>(null);
-  const primerCargaRef = useRef(true);
+  const primerCargaRef      = useRef(true);
 
   const toast = useCallback((msg: string, type: "ok" | "err" = "ok") => {
     const id = Date.now();
@@ -92,7 +142,7 @@ export default function Cocina() {
             const mesa = items[0]?.mesa ?? "?";
             const productos = items.map(o => `${o.cantidad}× ${o.producto}`);
             notificarNuevaOrden(mesa, productos);
-            toast(`🔔 Nueva orden — Mesa ${mesa}`, "ok");
+            toast(`Nueva orden — Mesa ${mesa}`, "ok");
             ordenesConocidasRef.current!.add(id);
           }
         });
@@ -100,7 +150,6 @@ export default function Cocina() {
           if (!idsNuevos.has(id)) ordenesConocidasRef.current!.delete(id);
         });
       }
-
       setOrdenes(nuevasOrdenes);
     } catch (err) {
       console.error("Error cargando cocina:", err);
@@ -126,11 +175,9 @@ export default function Cocina() {
     });
   }
 
-  // ─── Limpiar cocina (marcar todo como ENTREGADO) ──────────────
   async function ejecutarLimpieza() {
     try {
       setLimpiando(true);
-      // Marca todos los ítems que no sean ENTREGADO como ENTREGADO
       const pendientes = ordenes.filter(o => o.estado !== "ENTREGADO");
       await Promise.all(
         pendientes.map(o =>
@@ -140,8 +187,8 @@ export default function Cocina() {
         )
       );
       await cargarOrdenes();
-      toast(`🧹 Cocina limpiada — ${pendientes.length} ítems cerrados`, "ok");
-    } catch (err) {
+      toast(`Cocina limpiada — ${pendientes.length} ítems cerrados`, "ok");
+    } catch {
       toast("Error al limpiar la cocina", "err");
     } finally {
       setLimpiando(false);
@@ -151,30 +198,26 @@ export default function Cocina() {
 
   function handleLimpiarClick() {
     if (limpiarPaso === 0) {
-      setLimpiarPaso(1); // Primer click: mostrar confirmación inline
+      setLimpiarPaso(1);
     } else if (limpiarPaso === 1) {
-      setLimpiarPaso(2); // Segundo click: mostrar modal de doble confirmación
+      setLimpiarPaso(2);
       setConfirm({
-        titulo: "⚠️ Limpiar cocina",
+        titulo: "Limpiar cocina",
         descripcion: `Esto marcará las ${ordenes.filter(o => o.estado !== "ENTREGADO").length} órdenes activas como entregadas. Esta acción no se puede deshacer.`,
         tipo: "danger",
         textoConfirmar: "Sí, limpiar todo",
-        onConfirmar: () => {
-          setConfirm(null);
-          ejecutarLimpieza();
-        },
+        onConfirmar: () => { setConfirm(null); ejecutarLimpieza(); },
       });
     }
   }
 
+  useWebSocket(["orden_nueva", "orden_actualizada"], cargarOrdenes);
+
   useEffect(() => {
     pedirPermisoNotificaciones();
     cargarOrdenes();
-    const intervalo = setInterval(cargarOrdenes, 2000);
-    return () => clearInterval(intervalo);
   }, [cargarOrdenes]);
 
-  // Cancelar el primer paso si pasan 4 segundos sin segundo click
   useEffect(() => {
     if (limpiarPaso === 1) {
       const t = setTimeout(() => setLimpiarPaso(0), 4000);
@@ -194,62 +237,104 @@ export default function Cocina() {
   );
 
   const totalOrdenes = Object.keys(ordenesAgrupadas).length;
-  const totalPlatos = ordenes.reduce((acc, o) => acc + o.cantidad, 0);
-  const listos = ordenes.filter(o => o.estado === "LISTO").length;
-  const enPrep = ordenes.filter(o => o.estado === "PREPARACION").length;
+  const totalPlatos  = ordenes.reduce((acc, o) => acc + o.cantidad, 0);
+  const listos       = ordenes.filter(o => o.estado === "LISTO").length;
+  const enPrep       = ordenes.filter(o => o.estado === "PREPARACION").length;
+  const hayActivos   = ordenes.filter(o => o.estado !== "ENTREGADO").length > 0;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100vh", overflow: "hidden", background: "#f1f5f3" }}>
+    <div style={{
+      display: "flex", flexDirection: "column",
+      height: "100vh", overflow: "hidden",
+      background: C.bg,
+      fontFamily: "'Inter', system-ui, sans-serif",
+      color: C.text,
+    }}>
 
-      {/* HEADER */}
-      <div style={{ flexShrink: 0, padding: "20px 32px", display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 16 }}>
-        <div>
-          <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: "#0f1f1a", display: "flex", alignItems: "center", gap: 10 }}>
-            👨‍🍳 Cocina
-          </h1>
-          <p style={{ margin: "4px 0 0", fontSize: 13, color: "#94a3b8" }}>
-            Actualización automática cada 2 segundos
-          </p>
+      {/* ── HEADER ── */}
+      <div style={{
+        flexShrink: 0,
+        padding: "18px 24px",
+        borderBottom: `1px solid ${C.border}`,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        flexWrap: "wrap",
+        gap: 12,
+        background: C.card,
+        boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
+      }}>
+        {/* Título */}
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{
+            width: 36, height: 36, borderRadius: 9,
+            background: C.greenLt, border: `1px solid ${C.greenMid}`,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            color: C.green, flexShrink: 0,
+          }}>
+            <ChefHat size={18} />
+          </div>
+          <div>
+            <h1 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: C.slate, letterSpacing: "-0.3px" }}>
+              Cocina
+            </h1>
+            <p style={{ margin: "1px 0 0", fontSize: 11, color: C.muted }}>
+              Actualización automática en tiempo real
+            </p>
+          </div>
         </div>
 
-        <div style={{ display: "flex", gap: 10, alignItems: "flex-start", flexWrap: "wrap" }}>
+        {/* Stats + botón limpiar */}
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
           {[
-            { label: "Órdenes activas", value: totalOrdenes, color: "#1e3a2f", bg: "#dcfce7", border: "#bbf7d0" },
-            { label: "En preparación",  value: enPrep,       color: "#9a3412", bg: "#fff7ed", border: "#fed7aa" },
-            { label: "Listos",          value: listos,       color: "#14532d", bg: "#f0fdf4", border: "#86efac" },
-            { label: "Total platos",    value: totalPlatos,  color: "#1e3a5f", bg: "#eff6ff", border: "#bfdbfe" },
+            { label: "Activas",      value: totalOrdenes, icon: <Package size={13} />,    color: C.green,  bg: C.greenLt,  border: C.greenB  },
+            { label: "Preparación",  value: enPrep,       icon: <Flame size={13} />,      color: C.red,    bg: C.redLt,    border: C.redMid  },
+            { label: "Listos",       value: listos,       icon: <CheckCircle2 size={13} />,color: C.green,  bg: C.greenLt,  border: C.greenB  },
+            { label: "Platos",       value: totalPlatos,  icon: <UtensilsCrossed size={13} />, color: C.blue, bg: C.blueLt, border: C.blueB },
           ].map(s => (
             <div key={s.label} style={{
+              display: "flex", flexDirection: "column", alignItems: "center",
               background: s.bg, border: `1px solid ${s.border}`,
-              borderRadius: 12, padding: "10px 18px", textAlign: "center", minWidth: 80,
+              borderRadius: 10, padding: "8px 14px", minWidth: 68,
+              boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
             }}>
-              <div style={{ fontSize: 22, fontWeight: 800, color: s.color }}>{s.value}</div>
-              <div style={{ fontSize: 11, fontWeight: 600, color: s.color, opacity: 0.7, marginTop: 2 }}>{s.label}</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 4, color: s.color, marginBottom: 3 }}>
+                {s.icon}
+                <span style={{ fontSize: 20, fontWeight: 900, lineHeight: 1 }}>{s.value}</span>
+              </div>
+              <div style={{ fontSize: 10, fontWeight: 700, color: s.color, opacity: 0.7, letterSpacing: "0.04em" }}>
+                {s.label}
+              </div>
             </div>
           ))}
 
-          {/* ─── Botón limpiar cocina ─── */}
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+          {/* Separador */}
+          <div style={{ width: 1, height: 36, background: C.border, margin: "0 2px" }} />
+
+          {/* Botón limpiar */}
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
             <button
               onClick={handleLimpiarClick}
-              disabled={limpiando || ordenes.filter(o => o.estado !== "ENTREGADO").length === 0}
+              disabled={limpiando || !hayActivos}
               style={{
-                padding: "10px 18px",
-                borderRadius: 12,
-                border: `1px solid ${limpiarPaso === 1 ? "#fca5a5" : "#e2e8f0"}`,
-                background: limpiarPaso === 1 ? "#fee2e2" : "white",
-                color: limpiarPaso === 1 ? "#b91c1c" : "#64748b",
-                fontWeight: 700,
-                fontSize: 13,
-                cursor: limpiando ? "not-allowed" : "pointer",
+                display: "flex", alignItems: "center", gap: 6,
+                padding: "8px 14px", borderRadius: 9,
+                border: `1px solid ${limpiarPaso === 1 ? C.redMid : C.border}`,
+                background: limpiarPaso === 1 ? C.redLt : C.card,
+                color: limpiarPaso === 1 ? C.red : C.muted,
+                fontWeight: 700, fontSize: 12,
+                cursor: limpiando || !hayActivos ? "not-allowed" : "pointer",
+                opacity: !hayActivos ? 0.4 : 1,
                 transition: "all 0.2s",
                 whiteSpace: "nowrap",
               }}
             >
-              {limpiando ? "Limpiando..." : limpiarPaso === 1 ? "⚠️ ¿Confirmar limpieza?" : "🧹 Limpiar cocina"}
+              {limpiarPaso === 1
+                ? <><AlertTriangle size={13} /> ¿Confirmar limpieza?</>
+                : <><Brush size={13} /> Limpiar cocina</>}
             </button>
             {limpiarPaso === 1 && (
-              <span style={{ fontSize: 11, color: "#b91c1c", fontWeight: 600 }}>
+              <span style={{ fontSize: 10, color: C.red, fontWeight: 600 }}>
                 Click de nuevo para continuar
               </span>
             )}
@@ -257,109 +342,165 @@ export default function Cocina() {
         </div>
       </div>
 
-      <div style={{ flex: 1, overflowY: "auto", padding: "0 32px 28px" }}>
+      {/* ── CONTENIDO ── */}
+      <div style={{ flex: 1, overflowY: "auto", padding: "18px 24px 28px" }}>
 
-        {/* EMPTY */}
+        {/* Empty state */}
         {totalOrdenes === 0 && (
           <div style={{
-            background: "white", borderRadius: 16, padding: "80px 20px",
-            textAlign: "center", color: "#94a3b8", border: "1px solid #e2e8f0",
+            background: C.card, borderRadius: 14,
+            border: `1px solid ${C.border}`,
+            padding: "72px 20px",
+            textAlign: "center",
+            boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
+            display: "flex", flexDirection: "column", alignItems: "center", gap: 10,
           }}>
-            <div style={{ fontSize: 48, marginBottom: 12 }}>🧊</div>
-            <p style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>No hay órdenes pendientes</p>
-            <p style={{ margin: "6px 0 0", fontSize: 13 }}>La cocina está al día</p>
+            <Snowflake size={44} color={C.dimB} strokeWidth={1.5} />
+            <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: C.muted }}>
+              No hay órdenes pendientes
+            </p>
+            <p style={{ margin: 0, fontSize: 13, color: C.dim }}>
+              La cocina está al día
+            </p>
           </div>
         )}
 
-        {/* GRID */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))", gap: 20 }}>
+        {/* Grid de órdenes */}
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fill, minmax(330px, 1fr))",
+          gap: 14,
+        }}>
           {Object.entries(ordenesAgrupadas).map(([ordenId, orden]) => {
-            const todosListos = orden.productos.every(p => p.estado === "LISTO" || p.estado === "ENTREGADO");
+            const todosListos = orden.productos.every(
+              p => p.estado === "LISTO" || p.estado === "ENTREGADO"
+            );
+            const hayPrep = orden.productos.some(p => p.estado === "PREPARACION");
+
+            // Color del borde de la card según estado dominante
+            const cardBorder = todosListos ? C.greenB : hayPrep ? C.redMid : C.border;
 
             return (
               <div key={ordenId} style={{
-                background: "white", borderRadius: 16,
-                border: `1.5px solid ${todosListos ? "#bbf7d0" : "#e2e8f0"}`,
-                overflow: "hidden", display: "flex", flexDirection: "column",
-                boxShadow: "0 2px 12px rgba(0,0,0,0.05)",
+                background: C.card,
+                borderRadius: 13,
+                border: `1.5px solid ${cardBorder}`,
+                overflow: "hidden",
+                display: "flex", flexDirection: "column",
+                boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
+                transition: "border-color 0.2s",
               }}>
 
-                {/* CARD HEADER */}
+                {/* Card header */}
                 <div style={{
                   display: "flex", justifyContent: "space-between", alignItems: "center",
-                  padding: "14px 20px",
-                  background: todosListos
-                    ? "linear-gradient(135deg, #14532d, #166534)"
-                    : "linear-gradient(135deg, #16241f, #0f1f1a)",
+                  padding: "12px 16px",
+                  background: todosListos ? C.green : C.slate,
                   color: "white",
                 }}>
                   <div>
-                    <div style={{ fontSize: 11, opacity: 0.65, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                    <div style={{
+                      fontSize: 10, opacity: 0.5, fontWeight: 700,
+                      letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 3,
+                    }}>
                       Orden #{ordenId}
                     </div>
-                    <div style={{ fontSize: 20, fontWeight: 800, marginTop: 2 }}>Mesa {orden.mesa}</div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 17, fontWeight: 800 }}>
+                      <UtensilsCrossed size={15} style={{ opacity: 0.7 }} />
+                      Mesa {orden.mesa}
+                    </div>
                   </div>
                   <div style={{ textAlign: "right" }}>
-                    <div style={{ fontSize: 13, opacity: 0.8, fontWeight: 600 }}>
+                    <div style={{
+                      display: "flex", alignItems: "center", gap: 4,
+                      fontSize: 12, opacity: 0.65, fontWeight: 600, marginBottom: 5,
+                    }}>
+                      <Clock size={11} />
                       {new Date(orden.fecha).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                     </div>
                     <div style={{
-                      marginTop: 4, fontSize: 11, fontWeight: 700,
-                      background: todosListos ? "#dcfce7" : "rgba(255,255,255,0.15)",
-                      color: todosListos ? "#14532d" : "white",
-                      padding: "2px 10px", borderRadius: 99,
+                      display: "inline-flex", alignItems: "center", gap: 5,
+                      fontSize: 11, fontWeight: 700,
+                      background: todosListos ? "rgba(255,255,255,0.2)" : "rgba(255,255,255,0.1)",
+                      border: "1px solid rgba(255,255,255,0.15)",
+                      padding: "3px 9px", borderRadius: 6,
                     }}>
-                      {todosListos ? "✅ Listo" : `${orden.productos.length} ítems`}
+                      {todosListos
+                        ? <><CheckCircle2 size={11} /> Listo</>
+                        : <><Package size={11} /> {orden.productos.length} ítems</>}
                     </div>
                   </div>
                 </div>
 
-                {/* PRODUCTOS */}
-                <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 10, flex: 1 }}>
+                {/* Productos */}
+                <div style={{
+                  padding: 12,
+                  display: "flex", flexDirection: "column", gap: 8,
+                  flex: 1,
+                }}>
                   {orden.productos.map((item) => {
                     const info = ESTADOS[item.estado] ?? ESTADOS.PENDIENTE;
-                    const sig = SIGUIENTE[item.estado];
+                    const sig  = SIGUIENTE[item.estado];
 
                     return (
                       <div key={item.id} style={{
-                        background: info.bg, border: `1px solid ${info.border}`,
-                        borderRadius: 12, padding: 14,
+                        background: info.bg,
+                        border: `1px solid ${info.border}`,
+                        borderRadius: 10,
+                        padding: 12,
                       }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
-                          <strong style={{ fontSize: 14, color: "#0f172a" }}>
+                        {/* Producto + badge estado */}
+                        <div style={{
+                          display: "flex", justifyContent: "space-between",
+                          alignItems: "center", gap: 10,
+                        }}>
+                          <strong style={{ fontSize: 14, color: C.slate, fontWeight: 700 }}>
                             {item.cantidad} × {item.producto}
                           </strong>
                           <span style={{
-                            background: info.bg, color: info.color, border: `1px solid ${info.border}`,
-                            padding: "3px 10px", borderRadius: 99, fontSize: 11, fontWeight: 700,
-                            whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 4,
+                            display: "inline-flex", alignItems: "center", gap: 4,
+                            background: info.bg, color: info.color,
+                            border: `1px solid ${info.border}`,
+                            padding: "3px 9px", borderRadius: 6,
+                            fontSize: 11, fontWeight: 700, whiteSpace: "nowrap",
                           }}>
-                            {info.icon} {item.estado}
+                            {info.icon} {info.label}
                           </span>
                         </div>
 
+                        {/* Observación */}
                         {item.observacion && (
-                          <p style={{
-                            margin: "8px 0 0", fontSize: 12, color: "#92400e",
-                            background: "#fffbeb", border: "1px solid #fde68a",
-                            borderRadius: 8, padding: "6px 10px",
+                          <div style={{
+                            display: "flex", alignItems: "flex-start", gap: 6,
+                            marginTop: 8, padding: "7px 10px",
+                            background: C.amberLt, border: `1px solid ${C.amberMid}`,
+                            borderRadius: 7, fontSize: 12, color: C.amber,
                           }}>
-                            📝 {item.observacion}
-                          </p>
+                            <FileText size={12} style={{ flexShrink: 0, marginTop: 1 }} />
+                            {item.observacion}
+                          </div>
                         )}
 
+                        {/* Botón avanzar estado */}
                         {sig && (
                           <button
                             onClick={() => cambiarEstado(item, orden.mesa)}
                             style={{
-                              marginTop: 12, width: "100%", padding: "9px 0",
-                              borderRadius: 9, border: `1px solid ${info.border}`,
-                              background: "white", color: info.color, fontWeight: 700,
-                              fontSize: 13, cursor: "pointer", display: "flex",
-                              alignItems: "center", justifyContent: "center", gap: 6,
+                              marginTop: 10, width: "100%",
+                              display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                              padding: "8px 0", borderRadius: 8,
+                              border: `1px solid ${info.border}`,
+                              background: C.card,
+                              color: info.color,
+                              fontWeight: 700, fontSize: 12,
+                              cursor: "pointer",
+                              transition: "background 0.15s",
                             }}
+                            onMouseEnter={e => (e.currentTarget.style.background = info.bg)}
+                            onMouseLeave={e => (e.currentTarget.style.background = C.card)}
                           >
-                            {ESTADOS[sig.estado].icon} {sig.label}
+                            {sig.icon} {sig.label}
+                            <ChevronRight size={13} style={{ opacity: 0.5 }} />
                           </button>
                         )}
                       </div>
@@ -370,29 +511,40 @@ export default function Cocina() {
             );
           })}
         </div>
-
-        {/* TOASTS */}
-        <div style={{
-          position: "fixed", bottom: 24, left: "50%", transform: "translateX(-50%)",
-          display: "flex", flexDirection: "column", gap: 8, zIndex: 200, alignItems: "center",
-        }}>
-          {toasts.map(t => (
-            <div key={t.id} style={{
-              padding: "10px 20px", borderRadius: 99, fontSize: 13, fontWeight: 600,
-              whiteSpace: "nowrap",
-              background: t.type === "ok" ? "#f0fdf4" : "#fff7ed",
-              border: `1px solid ${t.type === "ok" ? "#bbf7d0" : "#fed7aa"}`,
-              color: t.type === "ok" ? "#15803d" : "#c2410c",
-            }}>
-              {t.msg}
-            </div>
-          ))}
-        </div>
-
-        {confirm && (
-          <ConfirmModal {...confirm} onCancelar={() => { setConfirm(null); setLimpiarPaso(0); }} />
-        )}
       </div>
+
+      {/* ── TOASTS ── */}
+      <div style={{
+        position: "fixed", bottom: 24, left: "50%", transform: "translateX(-50%)",
+        display: "flex", flexDirection: "column", gap: 8,
+        zIndex: 200, alignItems: "center",
+        pointerEvents: "none",
+      }}>
+        {toasts.map(t => (
+          <div key={t.id} style={{
+            display: "flex", alignItems: "center", gap: 8,
+            padding: "10px 18px", borderRadius: 99,
+            fontSize: 13, fontWeight: 600, whiteSpace: "nowrap",
+            background: t.type === "ok" ? C.greenLt : C.amberLt,
+            border: `1px solid ${t.type === "ok" ? C.greenB : C.amberB}`,
+            color: t.type === "ok" ? C.green : C.amber,
+            boxShadow: "0 4px 16px rgba(0,0,0,0.1)",
+          }}>
+            {t.type === "ok"
+              ? <Bell size={13} />
+              : <AlertTriangle size={13} />}
+            {t.msg}
+          </div>
+        ))}
+      </div>
+
+      {/* ── Modal confirmación ── */}
+      {confirm && (
+        <ConfirmModal
+          {...confirm}
+          onCancelar={() => { setConfirm(null); setLimpiarPaso(0); }}
+        />
+      )}
     </div>
   );
 }
