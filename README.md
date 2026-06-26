@@ -27,17 +27,26 @@ A desktop and mobile Point of Sale (POS) system for restaurants built with **Rea
 - Axios
 
 ### Backend
-- Tauri (Rust)
+- Python
+- FastAPI
+- SQLAlchemy
+- Uvicorn
+
+### Desktop
+- Tauri
+- Rust
 
 ### Database
 - SQLite
 
-### Tools
+### Mobile
+- React
+- Capacitor
+
+### Development Tools
 - Git
 - GitHub
 - Visual Studio Code
-
----
 
 ## 📂 Project Structure
 
@@ -45,7 +54,7 @@ A desktop and mobile Point of Sale (POS) system for restaurants built with **Rea
 restaurant-system
 │
 ├── src/                # React application
-├── src-tauri/          # Tauri backend (Rust)
+├── src-tauri/          # Tauri / backend
 ├── public/             # Static assets
 ├── mobile/             # Mobile resources
 ├── dist/               # Production build
