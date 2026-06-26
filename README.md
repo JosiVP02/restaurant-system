@@ -7,14 +7,17 @@ A desktop and mobile Point of Sale (POS) system for restaurants built with **Rea
 ## 📌 Features
 
 - Dynamic table management
-- Order creation and tracking
-- Kitchen order workflow
-- Billing and payment processing
 - Product management
-- Local SQLite database
+- Order creation and tracking
+- Real-time kitchen workflow
+- Billing and payment processing
+- Sales reports
+- Business configuration
+- FastAPI REST API backend
+- SQLite local database
 - Desktop application powered by Tauri
-- Fast and lightweight interface
-
+- Mobile application for waiters and kitchen staff
+- Local network synchronization
 ---
 
 ## 🛠️ Technologies
