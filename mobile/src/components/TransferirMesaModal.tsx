@@ -1,5 +1,6 @@
 // src/components/TransferirMesaModal.tsx
 import { useEffect, useState, useRef, useCallback } from "react";
+import { TbArrowsRightLeft, TbAlertTriangle } from "react-icons/tb";
 import { api } from "../services/api";
 import ConfirmModal from "./ConfirmModal";
 import type { Mesa } from "../services";
@@ -131,23 +132,23 @@ useEffect(() => {
         }}
       >
         {/* Header */}
-        <div style={{ padding: "18px 22px", borderBottom: "1px solid #eef2f0", display: "flex", alignItems: "center", gap: 14 }}>
+        <div style={{ padding: "18px 22px", background: "#0f1a13", display: "flex", alignItems: "center", gap: 14 }}>
           <div
             style={{
               width: 42, height: 42, borderRadius: 12,
-              background: "#eff6ff", border: "1px solid #bfdbfe",
+              background: "rgba(22,163,74,0.2)", border: "1px solid rgba(22,163,74,0.3)",
               display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: 20, flexShrink: 0,
+              flexShrink: 0,
             }}
           >
-            🔄
+            <TbArrowsRightLeft size={20} color="#4ade80" />
           </div>
           <div>
-            <h2 style={{ margin: 0, fontSize: 16.5, fontWeight: 800, color: "#1f2937" }}>
+            <h2 style={{ margin: 0, fontSize: 16.5, fontWeight: 800, color: "white" }}>
               Transferir Mesa
             </h2>
-            <p style={{ margin: 0, marginTop: 2, fontSize: 12.5, color: "#94a3b8" }}>
-              Mesa actual: <strong style={{ color: "#475569" }}>{mesaActual}</strong>
+            <p style={{ margin: 0, marginTop: 2, fontSize: 12.5, color: "#6b9e7e", fontWeight: 500 }}>
+              Mesa actual: <strong style={{ color: "#9fc9ad" }}>{mesaActual}</strong>
             </p>
           </div>
         </div>
@@ -155,8 +156,8 @@ useEffect(() => {
         {/* Body */}
         <div style={{ padding: "20px 22px" }}>
           <label style={{
-            display: "block", fontSize: 12, fontWeight: 700, color: "#334155",
-            textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 8,
+            display: "block", fontSize: 12, fontWeight: 700, color: "#94a3b8",
+            textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8,
           }}>
             Mesa de destino
           </label>
@@ -167,8 +168,9 @@ useEffect(() => {
             onChange={(e) => setMesaDestino(e.target.value)}
             style={{
               width: "100%", padding: "13px 14px", borderRadius: 10,
-              border: "1px solid #d1d5db", fontSize: 15, fontWeight: 500,
+              border: "1.5px solid #e2e8f0", fontSize: 15, fontWeight: 500,
               color: "#1f2937", background: "white", boxSizing: "border-box",
+              fontFamily: "inherit",
             }}
           >
             <option value="">Seleccione mesa</option>
@@ -181,13 +183,16 @@ useEffect(() => {
 
           <div style={{ marginTop: 10, minHeight: 18 }}>
             {errorMsg ? (
-              <p style={{ margin: 0, fontSize: 12.5, color: "#ef4444" }}>⚠️ {errorMsg}</p>
+              <p style={{ margin: 0, fontSize: 12.5, color: "#dc2626", display: "flex", alignItems: "center", gap: 5 }}>
+                <TbAlertTriangle size={14} />
+                {errorMsg}
+              </p>
             ) : mesas.length === 0 ? (
-              <p style={{ margin: 0, fontSize: 12.5, color: "#94a3b8" }}>
+              <p style={{ margin: 0, fontSize: 12.5, color: "#94a3b8", fontWeight: 500 }}>
                 No hay mesas libres disponibles
               </p>
             ) : (
-              <p style={{ margin: 0, fontSize: 12.5, color: "#94a3b8" }}>
+              <p style={{ margin: 0, fontSize: 12.5, color: "#94a3b8", fontWeight: 500 }}>
                 {mesas.length} mesa{mesas.length !== 1 ? "s" : ""} libre{mesas.length !== 1 ? "s" : ""}
               </p>
             )}
@@ -198,14 +203,15 @@ useEffect(() => {
         <div style={{
           display: "flex", gap: 10, padding: "14px 22px",
           paddingBottom: "calc(14px + env(safe-area-inset-bottom, 0px))",
-          borderTop: "1px solid #eef2f0", background: "#fafafa",
+          borderTop: "1px solid #e8eeeb", background: "white",
         }}>
           <button
             onClick={onClose}
             style={{
               flex: 1, padding: 13, borderRadius: 10,
-              border: "1px solid #d1d5db", background: "white",
+              border: "1.5px solid #e2e8f0", background: "white",
               color: "#475569", fontWeight: 700, fontSize: 14, cursor: "pointer",
+              fontFamily: "inherit",
             }}
           >
             Cancelar
@@ -218,9 +224,18 @@ useEffect(() => {
               background: !mesaDestino || transfiriendo ? "#bfdbfe" : "#2563eb",
               color: "white", fontWeight: 700, fontSize: 14,
               cursor: !mesaDestino || transfiriendo ? "not-allowed" : "pointer",
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+              fontFamily: "inherit",
             }}
           >
-            {transfiriendo ? "Transfiriendo..." : "Transferir"}
+            {transfiriendo ? (
+              "Transfiriendo..."
+            ) : (
+              <>
+                <TbArrowsRightLeft size={15} />
+                Transferir
+              </>
+            )}
           </button>
         </div>
       </div>

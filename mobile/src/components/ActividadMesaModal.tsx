@@ -6,6 +6,18 @@
 // Cambia a modal fullscreen en vez de modal centrado de ancho fijo.
 
 import { useEffect, useState, useCallback } from "react";
+import {
+  TbX,
+  TbClock,
+  TbInbox,
+  TbHourglassHigh,
+  TbFlame,
+  TbCheck,
+  TbToolsKitchen2,
+  TbNotes,
+  TbPencil,
+  TbTrash,
+} from "react-icons/tb";
 import { api } from "../services/api";
 import ConfirmModal from "./ConfirmModal";
 import ToastStack from "./Toast";
@@ -25,11 +37,11 @@ interface EdicionItem {
   observacion: string;
 }
 
-const ESTADOS: Record<string, { color: string; bg: string; icon: string; border: string }> = {
-  PENDIENTE: { color: "#92400e", bg: "#fffbeb", icon: "⏳", border: "#fde68a" },
-  PREPARACION: { color: "#9a3412", bg: "#fff7ed", icon: "🔥", border: "#fed7aa" },
-  LISTO: { color: "#14532d", bg: "#f0fdf4", icon: "✅", border: "#bbf7d0" },
-  ENTREGADO: { color: "#334155", bg: "#f8fafc", icon: "🍽️", border: "#e2e8f0" },
+const ESTADOS: Record<string, { color: string; bg: string; icon: typeof TbHourglassHigh; border: string }> = {
+  PENDIENTE: { color: "#92400e", bg: "#fffbeb", icon: TbHourglassHigh, border: "#fde68a" },
+  PREPARACION: { color: "#9a3412", bg: "#fff7ed", icon: TbFlame, border: "#fed7aa" },
+  LISTO: { color: "#14532d", bg: "#f0fdf4", icon: TbCheck, border: "#bbf7d0" },
+  ENTREGADO: { color: "#334155", bg: "#f8fafc", icon: TbToolsKitchen2, border: "#e2e8f0" },
 };
 
 export default function ActividadMesaModal({ cuentaId, onClose }: Props) {
@@ -154,7 +166,7 @@ useEffect(() => {
       <div
         style={{
           padding: "16px 18px",
-          borderBottom: "1px solid #eef2f0",
+          background: "#0f1a13",
           display: "flex",
           alignItems: "center",
           gap: 12,
@@ -162,31 +174,42 @@ useEffect(() => {
       >
         <button
           onClick={onClose}
-          style={{ width: 36, height: 36, borderRadius: 10, border: "1px solid #e2e8f0", background: "white", fontSize: 16, flexShrink: 0 }}
+          style={{
+            width: 36,
+            height: 36,
+            borderRadius: 10,
+            border: "1px solid rgba(255,255,255,0.12)",
+            background: "rgba(255,255,255,0.08)",
+            color: "white",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexShrink: 0,
+            cursor: "pointer",
+          }}
         >
-          ✕
+          <TbX size={17} />
         </button>
         <div
           style={{
             width: 38,
             height: 38,
             borderRadius: 11,
-            background: "#f1f5f9",
-            border: "1px solid #e2e8f0",
+            background: "rgba(22,163,74,0.2)",
+            border: "1px solid rgba(22,163,74,0.3)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            fontSize: 18,
             flexShrink: 0,
           }}
         >
-          🕓
+          <TbClock size={17} color="#4ade80" />
         </div>
         <div>
-          <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: "#1f2937" }}>
+          <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: "white" }}>
             Actividad de la Mesa
           </h2>
-          <p style={{ margin: 0, fontSize: 11.5, color: "#94a3b8" }}>
+          <p style={{ margin: 0, fontSize: 11.5, color: "#6b9e7e", fontWeight: 500 }}>
             Cuenta #{cuentaId} · {totalOrdenes} {totalOrdenes === 1 ? "orden" : "órdenes"}
           </p>
         </div>
@@ -196,8 +219,23 @@ useEffect(() => {
       <div style={{ padding: "16px 18px", overflowY: "auto", flex: 1 }}>
         {totalOrdenes === 0 && (
           <div style={{ textAlign: "center", padding: "50px 10px", color: "#94a3b8" }}>
-            <div style={{ fontSize: 36, marginBottom: 10 }}>📭</div>
-            <p style={{ margin: 0, fontSize: 14 }}>Aún no hay actividad registrada</p>
+            <div
+              style={{
+                width: 48,
+                height: 48,
+                borderRadius: 14,
+                background: "#f1f5f9",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                margin: "0 auto 12px",
+              }}
+            >
+              <TbInbox size={22} color="#cbd5e1" />
+            </div>
+            <p style={{ margin: 0, fontSize: 13.5, fontWeight: 500, color: "#94a3b8" }}>
+              Aún no hay actividad registrada
+            </p>
           </div>
         )}
 
@@ -214,12 +252,15 @@ useEffect(() => {
               }}
             >
               <span>Orden #{ordenId}</span>
-              <span>{new Date(orden.fecha).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
+              <span style={{ fontVariantNumeric: "tabular-nums" }}>
+                {new Date(orden.fecha).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+              </span>
             </div>
 
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {orden.productos.map((item) => {
                 const info = ESTADOS[item.estado] ?? ESTADOS.PENDIENTE;
+                const EstadoIcon = info.icon;
                 const isPendiente = item.estado === "PENDIENTE";
                 const isEditando = !!editando[item.id];
                 const ed = editando[item.id];
@@ -229,8 +270,8 @@ useEffect(() => {
                     key={item.id}
                     style={{
                       background: "white",
-                      border: `1px solid ${isPendiente ? "#fde68a" : "#eef2f0"}`,
-                      borderRadius: 10,
+                      border: `1px solid ${isPendiente ? "#fde68a" : "#e8eeeb"}`,
+                      borderRadius: 12,
                       padding: "10px 14px",
                     }}
                   >
@@ -251,12 +292,13 @@ useEffect(() => {
                               width: 56,
                               padding: "4px 6px",
                               borderRadius: 7,
-                              border: "1px solid #fde68a",
+                              border: "1.5px solid #fde68a",
                               fontWeight: 800,
                               fontSize: 13,
                               textAlign: "center",
                               background: "#fffbeb",
                               flexShrink: 0,
+                              fontVariantNumeric: "tabular-nums",
                             }}
                           />
                         ) : (
@@ -270,6 +312,7 @@ useEffect(() => {
                               borderRadius: 7,
                               padding: "3px 9px",
                               flexShrink: 0,
+                              fontVariantNumeric: "tabular-nums",
                             }}
                           >
                             x{item.cantidad}
@@ -291,9 +334,13 @@ useEffect(() => {
                           fontWeight: 700,
                           whiteSpace: "nowrap",
                           flexShrink: 0,
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 4,
                         }}
                       >
-                        {info.icon} {item.estado}
+                        <EstadoIcon size={11} />
+                        {item.estado}
                       </span>
                     </div>
 
@@ -314,15 +361,27 @@ useEffect(() => {
                           boxSizing: "border-box",
                           padding: "7px 10px",
                           borderRadius: 7,
-                          border: "1px solid #e2e8f0",
+                          border: "1.5px solid #e2e8f0",
                           fontSize: 12.5,
                           color: "#475569",
                           background: "#f8fafc",
+                          fontFamily: "inherit",
                         }}
                       />
                     ) : item.observacion ? (
-                      <p style={{ margin: "5px 0 0", fontSize: 12, color: "#94a3b8", fontStyle: "italic" }}>
-                        📝 {item.observacion}
+                      <p
+                        style={{
+                          margin: "5px 0 0",
+                          fontSize: 12,
+                          color: "#94a3b8",
+                          fontStyle: "italic",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 5,
+                        }}
+                      >
+                        <TbNotes size={13} />
+                        {item.observacion}
                       </p>
                     ) : null}
 
@@ -332,13 +391,40 @@ useEffect(() => {
                           <>
                             <button
                               onClick={() => guardarEdicion(item)}
-                              style={{ flex: 1, padding: "8px 0", borderRadius: 8, border: "1px solid #bbf7d0", background: "#f0fdf4", color: "#14532d", fontWeight: 700, fontSize: 12.5 }}
+                              style={{
+                                flex: 1,
+                                padding: "8px 0",
+                                borderRadius: 8,
+                                border: "1.5px solid #d1fae5",
+                                background: "#f0fdf4",
+                                color: "#14532d",
+                                fontWeight: 700,
+                                fontSize: 12.5,
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                gap: 5,
+                                cursor: "pointer",
+                                fontFamily: "inherit",
+                              }}
                             >
-                              ✓ Guardar
+                              <TbCheck size={14} />
+                              Guardar
                             </button>
                             <button
                               onClick={() => cancelarEdicion(item.id)}
-                              style={{ flex: 1, padding: "8px 0", borderRadius: 8, border: "1px solid #e2e8f0", background: "white", color: "#64748b", fontWeight: 700, fontSize: 12.5 }}
+                              style={{
+                                flex: 1,
+                                padding: "8px 0",
+                                borderRadius: 8,
+                                border: "1.5px solid #e2e8f0",
+                                background: "white",
+                                color: "#64748b",
+                                fontWeight: 700,
+                                fontSize: 12.5,
+                                cursor: "pointer",
+                                fontFamily: "inherit",
+                              }}
                             >
                               Cancelar
                             </button>
@@ -347,15 +433,47 @@ useEffect(() => {
                           <>
                             <button
                               onClick={() => iniciarEdicion(item)}
-                              style={{ flex: 1, padding: "8px 0", borderRadius: 8, border: "1px solid #fde68a", background: "#fffbeb", color: "#92400e", fontWeight: 700, fontSize: 12.5 }}
+                              style={{
+                                flex: 1,
+                                padding: "8px 0",
+                                borderRadius: 8,
+                                border: "1.5px solid #fde68a",
+                                background: "#fffbeb",
+                                color: "#92400e",
+                                fontWeight: 700,
+                                fontSize: 12.5,
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                gap: 5,
+                                cursor: "pointer",
+                                fontFamily: "inherit",
+                              }}
                             >
-                              ✎ Editar
+                              <TbPencil size={14} />
+                              Editar
                             </button>
                             <button
                               onClick={() => cancelarItem(item)}
-                              style={{ flex: 1, padding: "8px 0", borderRadius: 8, border: "1px solid #fecaca", background: "#fef2f2", color: "#dc2626", fontWeight: 700, fontSize: 12.5 }}
+                              style={{
+                                flex: 1,
+                                padding: "8px 0",
+                                borderRadius: 8,
+                                border: "1.5px solid #fecaca",
+                                background: "#fef2f2",
+                                color: "#dc2626",
+                                fontWeight: 700,
+                                fontSize: 12.5,
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                gap: 5,
+                                cursor: "pointer",
+                                fontFamily: "inherit",
+                              }}
                             >
-                              🗑 Cancelar
+                              <TbTrash size={14} />
+                              Cancelar
                             </button>
                           </>
                         )}
@@ -370,10 +488,21 @@ useEffect(() => {
       </div>
 
       {/* FOOTER */}
-      <div style={{ padding: "14px 18px", paddingBottom: "calc(14px + env(safe-area-inset-bottom, 0px))", borderTop: "1px solid #eef2f0", background: "#fafafa" }}>
+      <div style={{ padding: "14px 18px", paddingBottom: "calc(14px + env(safe-area-inset-bottom, 0px))", borderTop: "1px solid #e8eeeb", background: "white" }}>
         <button
           onClick={onClose}
-          style={{ width: "100%", padding: 14, borderRadius: 10, border: "1px solid #d1d5db", background: "white", color: "#475569", fontWeight: 700, fontSize: 14.5 }}
+          style={{
+            width: "100%",
+            padding: 14,
+            borderRadius: 10,
+            border: "1.5px solid #e2e8f0",
+            background: "white",
+            color: "#475569",
+            fontWeight: 700,
+            fontSize: 14.5,
+            cursor: "pointer",
+            fontFamily: "inherit",
+          }}
         >
           Cerrar
         </button>

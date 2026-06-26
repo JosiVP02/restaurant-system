@@ -1,4 +1,5 @@
 // src/components/ConfirmModal.tsx
+import { TbPlus, TbMinus, TbTrash, TbCheck, TbCurrencyDollar } from "react-icons/tb";
 import type { ConfirmTipo } from "../services";
 
 interface Props {
@@ -10,20 +11,20 @@ interface Props {
   onCancelar: () => void;
 }
 
-const ICONOS: Record<ConfirmTipo, string> = {
-  default: "➕",
-  warning: "➖",
-  danger: "🗑️",
-  success: "✅",
-  money: "💰",
+const ICONOS: Record<ConfirmTipo, typeof TbPlus> = {
+  default: TbPlus,
+  warning: TbMinus,
+  danger: TbTrash,
+  success: TbCheck,
+  money: TbCurrencyDollar,
 };
 
 const COLORES: Record<ConfirmTipo, { bg: string; color: string; border: string }> = {
-  default: { bg: "#f0fdf4", color: "#15803d", border: "#bbf7d0" },
+  default: { bg: "#f0fdf4", color: "#15803d", border: "#d1fae5" },
   warning: { bg: "#fffbeb", color: "#b45309", border: "#fde68a" },
   danger: { bg: "#fef2f2", color: "#dc2626", border: "#fecaca" },
-  success: { bg: "#ecfdf5", color: "#16a34a", border: "#86efac" },
-  money: { bg: "#eff6ff", color: "#2563eb", border: "#93c5fd" },
+  success: { bg: "#f0fdf4", color: "#16a34a", border: "#bbf7d0" },
+  money: { bg: "#eff6ff", color: "#2563eb", border: "#bfdbfe" },
 };
 
 export default function ConfirmModal({
@@ -35,6 +36,7 @@ export default function ConfirmModal({
   onCancelar,
 }: Props) {
   const col = COLORES[tipo];
+  const Icono = ICONOS[tipo];
 
   return (
     <div
@@ -75,10 +77,9 @@ export default function ConfirmModal({
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            fontSize: 24,
           }}
         >
-          {ICONOS[tipo]}
+          <Icono size={24} color={col.color} />
         </div>
 
         <div style={{ textAlign: "center" }}>
@@ -86,7 +87,7 @@ export default function ConfirmModal({
             {titulo}
           </p>
           {descripcion && (
-            <p style={{ margin: "6px 0 0", fontSize: 13, color: "#94a3b8", whiteSpace: "pre-line" }}>
+            <p style={{ margin: "6px 0 0", fontSize: 13, color: "#94a3b8", fontWeight: 500, whiteSpace: "pre-line" }}>
               {descripcion}
             </p>
           )}
@@ -99,12 +100,13 @@ export default function ConfirmModal({
               flex: 1,
               padding: "13px 0",
               borderRadius: 10,
-              border: "1px solid #e2e8f0",
+              border: "1.5px solid #e2e8f0",
               background: "white",
               color: "#475569",
               fontWeight: 700,
               fontSize: 14,
               cursor: "pointer",
+              fontFamily: "inherit",
             }}
           >
             Cancelar
@@ -116,12 +118,13 @@ export default function ConfirmModal({
               flex: 1,
               padding: "13px 0",
               borderRadius: 10,
-              border: `1px solid ${col.border}`,
+              border: `1.5px solid ${col.border}`,
               background: col.bg,
               color: col.color,
               fontWeight: 700,
               fontSize: 14,
               cursor: "pointer",
+              fontFamily: "inherit",
             }}
           >
             {textoConfirmar}

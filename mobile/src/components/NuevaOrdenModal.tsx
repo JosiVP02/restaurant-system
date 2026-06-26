@@ -10,6 +10,7 @@
 // saltar al carrito en cualquier momento.
 
 import { useEffect, useState } from "react";
+import { TbX, TbClipboardList, TbBolt, TbSearch, TbShoppingCart, TbMinus, TbPlus, TbTrash } from "react-icons/tb";
 import { api } from "../services/api";
 import ConfirmModal from "./ConfirmModal";
 import type { Producto, ProductoCarritoItem, ConfirmState } from "../services";
@@ -38,8 +39,8 @@ export default function NuevaOrdenModal({
 
   const esDirecto = modo === "directo";
   const colorAccento = esDirecto ? "#2563eb" : "#16a34a";
-  const colorAccentoSuave = esDirecto ? "#eff6ff" : "#ecfdf5";
-  const colorAccentoBorde = esDirecto ? "#bfdbfe" : "#bbf7d0";
+  const colorAccentoSuave = esDirecto ? "#eff6ff" : "#f0fdf4";
+  const colorAccentoBorde = esDirecto ? "#bfdbfe" : "#d1fae5";
 
   useEffect(() => {
     api
@@ -184,7 +185,7 @@ export default function NuevaOrdenModal({
       <div
         style={{
           padding: "16px 18px",
-          borderBottom: "1px solid #eef2f0",
+          background: "#0f1a13",
           display: "flex",
           alignItems: "center",
           gap: 12,
@@ -196,42 +197,45 @@ export default function NuevaOrdenModal({
             width: 36,
             height: 36,
             borderRadius: 10,
-            border: "1px solid #e2e8f0",
-            background: "white",
-            fontSize: 16,
+            border: "1px solid rgba(255,255,255,0.12)",
+            background: "rgba(255,255,255,0.08)",
+            color: "white",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
             flexShrink: 0,
+            cursor: "pointer",
           }}
         >
-          ✕
+          <TbX size={17} />
         </button>
         <div
           style={{
             width: 38,
             height: 38,
             borderRadius: 11,
-            background: colorAccentoSuave,
-            border: `1px solid ${colorAccentoBorde}`,
+            background: "rgba(22,163,74,0.2)",
+            border: "1px solid rgba(22,163,74,0.3)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            fontSize: 18,
             flexShrink: 0,
           }}
         >
-          {esDirecto ? "⚡" : "📋"}
+          {esDirecto ? <TbBolt size={17} color="#4ade80" /> : <TbClipboardList size={17} color="#4ade80" />}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: "#1f2937" }}>
+          <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: "white" }}>
             {esDirecto ? "Agregar a Cuenta" : "Nueva Orden"}
           </h2>
-          <p style={{ margin: 0, fontSize: 11.5, color: "#94a3b8" }}>
+          <p style={{ margin: 0, fontSize: 11.5, color: "#6b9e7e", fontWeight: 500 }}>
             Mesa {mesaId} · Cuenta #{cuentaId || "—"}
           </p>
         </div>
       </div>
 
       {/* TABS */}
-      <div style={{ display: "flex", borderBottom: "1px solid #eef2f0" }}>
+      <div style={{ display: "flex", borderBottom: "1px solid #e8eeeb" }}>
         {(["catalogo", "carrito"] as const).map((v) => (
           <button
             key={v}
@@ -249,9 +253,21 @@ export default function NuevaOrdenModal({
               alignItems: "center",
               justifyContent: "center",
               gap: 6,
+              cursor: "pointer",
+              fontFamily: "inherit",
             }}
           >
-            {v === "catalogo" ? "🔍 Productos" : "🛒 Carrito"}
+            {v === "catalogo" ? (
+              <>
+                <TbSearch size={15} />
+                Productos
+              </>
+            ) : (
+              <>
+                <TbShoppingCart size={15} />
+                Carrito
+              </>
+            )}
             {v === "carrito" && cantidadTotal > 0 && (
               <span
                 style={{
@@ -281,11 +297,11 @@ export default function NuevaOrdenModal({
                   left: 14,
                   top: "50%",
                   transform: "translateY(-50%)",
-                  fontSize: 15,
+                  display: "flex",
                   color: "#94a3b8",
                 }}
               >
-                🔍
+                <TbSearch size={16} />
               </span>
               <input
                 type="text"
@@ -296,15 +312,17 @@ export default function NuevaOrdenModal({
                   width: "100%",
                   padding: "12px 14px 12px 38px",
                   borderRadius: 10,
-                  border: "1px solid #d1d5db",
+                  border: "1.5px solid #e2e8f0",
                   fontSize: 15,
                   boxSizing: "border-box",
+                  fontFamily: "inherit",
+                  color: "#1f2937",
                 }}
               />
             </div>
 
             {productosFiltrados.length === 0 && (
-              <p style={{ color: "#94a3b8", fontSize: 14, textAlign: "center", marginTop: 30 }}>
+              <p style={{ color: "#94a3b8", fontSize: 14, fontWeight: 500, textAlign: "center", marginTop: 30 }}>
                 No se encontraron productos
               </p>
             )}
@@ -324,11 +342,13 @@ export default function NuevaOrdenModal({
                     onClick={() => agregarProducto(producto)}
                     style={{
                       background: enCarrito ? colorAccentoSuave : "#f8fafc",
-                      border: `1.5px solid ${enCarrito ? colorAccentoBorde : "#e5e7eb"}`,
+                      border: `1.5px solid ${enCarrito ? colorAccentoBorde : "#e8eeeb"}`,
                       borderRadius: 12,
                       padding: 14,
                       textAlign: "left",
                       position: "relative",
+                      cursor: "pointer",
+                      fontFamily: "inherit",
                     }}
                   >
                     {enCarrito && (
@@ -343,6 +363,7 @@ export default function NuevaOrdenModal({
                           fontSize: 11,
                           fontWeight: 800,
                           padding: "2px 7px",
+                          fontVariantNumeric: "tabular-nums",
                         }}
                       >
                         {enCarrito.cantidad}
@@ -351,7 +372,7 @@ export default function NuevaOrdenModal({
                     <div style={{ fontWeight: 700, fontSize: 13.5, color: "#1f2937", marginBottom: 6 }}>
                       {producto.nombre}
                     </div>
-                    <div style={{ color: colorAccento, fontWeight: 800, fontSize: 14.5 }}>
+                    <div style={{ color: colorAccento, fontWeight: 800, fontSize: 14.5, fontVariantNumeric: "tabular-nums" }}>
                       ₡{producto.precio.toLocaleString()}
                     </div>
                   </button>
@@ -363,8 +384,23 @@ export default function NuevaOrdenModal({
           <div style={{ padding: 16 }}>
             {orden.length === 0 && (
               <div style={{ textAlign: "center", padding: "50px 10px", color: "#94a3b8" }}>
-                <div style={{ fontSize: 36, marginBottom: 10 }}>🛒</div>
-                <p style={{ margin: 0, fontSize: 14 }}>Seleccione productos para agregar</p>
+                <div
+                  style={{
+                    width: 48,
+                    height: 48,
+                    borderRadius: 14,
+                    background: "#f1f5f9",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    margin: "0 auto 12px",
+                  }}
+                >
+                  <TbShoppingCart size={22} color="#cbd5e1" />
+                </div>
+                <p style={{ margin: 0, fontSize: 13.5, fontWeight: 500, color: "#94a3b8" }}>
+                  Seleccione productos para agregar
+                </p>
               </div>
             )}
 
@@ -373,7 +409,7 @@ export default function NuevaOrdenModal({
                 key={item.id}
                 style={{
                   background: "white",
-                  border: "1px solid #e5e7eb",
+                  border: "1px solid #e8eeeb",
                   borderRadius: 12,
                   padding: 14,
                   marginBottom: 10,
@@ -381,7 +417,7 @@ export default function NuevaOrdenModal({
               >
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
                   <strong style={{ fontSize: 14.5, color: "#1f2937" }}>{item.nombre}</strong>
-                  <span style={{ fontWeight: 800, color: colorAccento, fontSize: 14.5 }}>
+                  <span style={{ fontWeight: 800, color: colorAccento, fontSize: 14.5, fontVariantNumeric: "tabular-nums" }}>
                     ₡{(item.precio * item.cantidad).toLocaleString()}
                   </span>
                 </div>
@@ -391,25 +427,55 @@ export default function NuevaOrdenModal({
                     style={{
                       display: "flex",
                       alignItems: "center",
-                      border: "1px solid #e2e8f0",
-                      borderRadius: 8,
+                      border: "1.5px solid #e2e8f0",
+                      borderRadius: 9,
                       overflow: "hidden",
+                      background: "white",
                     }}
                   >
                     <button
                       onClick={() => disminuirCantidad(item.id)}
-                      style={{ width: 36, height: 36, border: "none", background: "#f1f5f9", fontWeight: 700, fontSize: 17 }}
+                      style={{
+                        width: 36,
+                        height: 36,
+                        border: "none",
+                        background: "transparent",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        color: "#64748b",
+                        cursor: "pointer",
+                      }}
                     >
-                      −
+                      <TbMinus size={14} />
                     </button>
-                    <span style={{ width: 36, textAlign: "center", fontWeight: 700, fontSize: 15 }}>
+                    <span
+                      style={{
+                        width: 36,
+                        textAlign: "center",
+                        fontWeight: 700,
+                        fontSize: 15,
+                        color: "#1f2937",
+                        fontVariantNumeric: "tabular-nums",
+                      }}
+                    >
                       {item.cantidad}
                     </span>
                     <button
                       onClick={() => aumentarCantidad(item.id)}
-                      style={{ width: 36, height: 36, border: "none", background: "#f1f5f9", fontWeight: 700, fontSize: 17 }}
+                      style={{
+                        width: 36,
+                        height: 36,
+                        border: "none",
+                        background: "transparent",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        color: "#64748b",
+                        cursor: "pointer",
+                      }}
                     >
-                      +
+                      <TbPlus size={14} />
                     </button>
                   </div>
 
@@ -419,13 +485,17 @@ export default function NuevaOrdenModal({
                       marginLeft: "auto",
                       width: 36,
                       height: 36,
-                      border: "1px solid #fecaca",
+                      border: "1.5px solid #fecaca",
                       background: "#fef2f2",
                       color: "#dc2626",
                       borderRadius: 8,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      cursor: "pointer",
                     }}
                   >
-                    🗑
+                    <TbTrash size={15} />
                   </button>
                 </div>
 
@@ -439,7 +509,7 @@ export default function NuevaOrdenModal({
                     marginTop: 10,
                     padding: 8,
                     borderRadius: 8,
-                    border: "1px solid #e2e8f0",
+                    border: "1.5px solid #e2e8f0",
                     resize: "none",
                     fontSize: 13,
                     color: "#475569",
@@ -456,15 +526,15 @@ export default function NuevaOrdenModal({
       {/* FOOTER */}
       <div
         style={{
-          borderTop: "1px solid #eef2f0",
+          borderTop: "1px solid #e8eeeb",
           padding: "14px 18px",
           paddingBottom: "calc(14px + env(safe-area-inset-bottom, 0px))",
-          background: "#fafafa",
+          background: "white",
         }}
       >
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-          <span style={{ fontSize: 14, fontWeight: 700, color: "#1f2937" }}>Total</span>
-          <span style={{ fontSize: 21, fontWeight: 800, color: colorAccento }}>
+          <span style={{ fontSize: 13, fontWeight: 700, color: "#166534" }}>Total</span>
+          <span style={{ fontSize: 22, fontWeight: 800, color: colorAccento, letterSpacing: "-0.03em", fontVariantNumeric: "tabular-nums" }}>
             ₡{total.toLocaleString()}
           </span>
         </div>
@@ -481,9 +551,27 @@ export default function NuevaOrdenModal({
             padding: "15px 0",
             fontWeight: 700,
             fontSize: 15,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 7,
+            cursor: guardando || orden.length === 0 ? "default" : "pointer",
+            fontFamily: "inherit",
           }}
         >
-          {guardando ? "Guardando..." : esDirecto ? "Agregar a Cuenta" : "Crear Orden"}
+          {guardando ? (
+            "Guardando..."
+          ) : esDirecto ? (
+            <>
+              <TbBolt size={16} />
+              Agregar a Cuenta
+            </>
+          ) : (
+            <>
+              <TbClipboardList size={16} />
+              Crear Orden
+            </>
+          )}
         </button>
       </div>
 
