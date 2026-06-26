@@ -1,73 +1,179 @@
-# React + TypeScript + Vite
+# 🍽️ Restaurant POS System
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A desktop Point of Sale (POS) system for restaurants built with **React**, **TypeScript**, **Tauri**, and **SQLite**. The application is designed to streamline restaurant operations by managing tables, orders, billing, and kitchen workflows through a modern desktop interface.
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## 📌 Features
 
-## React Compiler
+- Dynamic table management
+- Order creation and tracking
+- Kitchen order workflow
+- Billing and payment processing
+- Product management
+- Local SQLite database
+- Desktop application powered by Tauri
+- Fast and lightweight interface
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+---
 
-## Expanding the ESLint configuration
+## 🛠️ Technologies
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+### Frontend
+- React
+- TypeScript
+- Vite
+- React Router
+- Axios
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+### Backend
+- Tauri (Rust)
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+### Database
+- SQLite
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+### Tools
+- Git
+- GitHub
+- Visual Studio Code
+
+---
+
+## 📂 Project Structure
+
+```text
+restaurant-system
+│
+├── src/                # React application
+├── src-tauri/          # Tauri backend (Rust)
+├── public/             # Static assets
+├── mobile/             # Mobile resources
+├── dist/               # Production build
+├── package.json
+└── README.md
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+---
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## 🚀 Installation
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+Clone the repository:
+
+```bash
+git clone https://github.com/JosiVP02/restaurant-system.git
 ```
+
+Install dependencies:
+
+```bash
+npm install
+```
+
+Run the application:
+
+```bash
+npm run tauri dev
+```
+
+---
+
+## 📦 Build
+
+Generate the production build:
+
+```bash
+npm run tauri build
+```
+
+---
+
+## 📷 Main Modules
+
+- Dashboard
+- Table Management
+- Product Management
+- Order Management
+- Kitchen Workflow
+- Billing
+- Reports
+
+---
+
+## 🎯 Objectives
+
+The system was developed to improve restaurant operations by:
+
+- Reducing manual processes.
+- Simplifying order management.
+- Improving communication between waiters and the kitchen.
+- Providing a modern desktop solution with local data storage.
+
+---
+
+## 📸 Screenshots
+
+### Dashboard / Sales
+
+![Dashboard](screenshots/ventas.png)
+
+---
+
+### Tables
+
+![Tables](screenshots/mesas.png)
+
+---
+
+### Order Management
+
+![Order Management](screenshots/cuenta.png)
+
+---
+
+### Kitchen
+
+![Kitchen](screenshots/cocina.png)
+
+---
+
+### Products
+
+![Products](screenshots/productos.png)
+
+---
+
+### Business Configuration
+
+![Configuration](screenshots/config.png)
+
+---
+
+### End of Day Closing
+
+![Closing](screenshots/cierre.png)
+
+
+
+
+## 👨‍💻 Author
+
+**Josimar Vallejos Paniagua**
+
+Business Informatics Student  
+University of Costa Rica
+
+📧 josimar.paniagua02@gmail.com
+
+GitHub:
+https://github.com/JosiVP02
+
+LinkedIn:
+https://www.linkedin.com/in/josimarVP02
+
+---
+
+## 📄 License
+
+## 📄 License
+
+This project is licensed under a custom proprietary license. See the [LICENSE](LICENSE) file for details.
