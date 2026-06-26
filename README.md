@@ -1,6 +1,6 @@
 # 🍽️ Restaurant POS System
 
-A desktop Point of Sale (POS) system for restaurants built with **React**, **TypeScript**, **Tauri**, and **SQLite**. The application is designed to streamline restaurant operations by managing tables, orders, billing, and kitchen workflows through a modern desktop interface.
+A desktop and mobile Point of Sale (POS) system for restaurants built with **React**, **TypeScript**, **Tauri**, **FastAPI**, and **SQLite**. The application streamlines restaurant operations by managing tables, orders, billing, kitchen workflows, and sales through a desktop application while providing a mobile interface for waiters and kitchen staff connected over a local network.
 
 ---
 
@@ -152,7 +152,29 @@ The system was developed to improve restaurant operations by:
 
 ![Closing](screenshots/cierre.png)
 
+---
 
+## 📱 Mobile Login
+
+![Mobile Login](screenshots/1.jpeg)
+
+---
+
+## 📱 Mobile Tables
+
+![Mobile Tables](screenshots/2.jpeg)
+
+---
+
+## 📱 Mobile Kitchen
+
+![Mobile Kitchen](screenshots/3.jpeg)
+
+---
+
+### End of Day Closing
+
+![Closing](screenshots/cierre.png)
 
 
 ## 👨‍💻 Author
@@ -172,7 +194,6 @@ https://www.linkedin.com/in/josimarVP02
 
 ---
 
-## 📄 License
 
 ## 📄 License
 
