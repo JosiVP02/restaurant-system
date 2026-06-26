@@ -172,11 +172,6 @@ The system was developed to improve restaurant operations by:
 
 ---
 
-### End of Day Closing
-
-![Closing](screenshots/cierre.png)
-
-
 ## 👨‍💻 Author
 
 **Josimar Vallejos Paniagua**
