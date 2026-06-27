@@ -1,4 +1,10 @@
-fastapi
-uvicorn
-sqlalchemy
-pydantic
+fastapi==0.137.1
+uvicorn==0.46.0
+sqlalchemy==2.0.51
+pydantic==2.13.4
+bcrypt==4.1.2
+python-multipart==0.0.28
+websockets==16.0
+pandas==3.0.3
+numpy==2.4.6
+openpyxl==3.1.5
