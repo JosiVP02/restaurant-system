@@ -238,7 +238,7 @@ export default function Cocina() {
               Cocina
             </h1>
             <p style={{ margin: "2px 0 0", fontSize: 12, color: "#6b9e7e", fontWeight: 500 }}>
-              Tiempo real vía WebSocket
+              Actualizacion en tiempo real
             </p>
           </div>
         </div>
