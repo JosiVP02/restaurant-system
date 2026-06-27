@@ -8,7 +8,6 @@ import { QRCodeCanvas } from "qrcode.react";
 import {
   Settings,
   Save,
-  Printer,
   Globe,
   Copy,
   ImageIcon,

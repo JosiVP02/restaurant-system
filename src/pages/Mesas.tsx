@@ -6,7 +6,7 @@ import { useWebSocket } from "../hooks/useWebSocket";
 import {
   LayoutGrid, Pencil, Check, RefreshCw, Plus,
   Users, CircleDot, Square, Minus,
-  Trash2, Edit3, Move, Info, Armchair,
+  Trash2, Edit3, Move, Armchair,
   CheckCircle2, AlertCircle,
 } from "lucide-react";
 

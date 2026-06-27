@@ -4,7 +4,7 @@ import ConfirmModal from "../components/ConfirmModal";
 import { useWebSocket } from "../hooks/useWebSocket";
 import {
   ChefHat, Clock, Flame, CheckCircle2, UtensilsCrossed,
-  Trash2, AlertTriangle, Bell, FileText, ChevronRight,
+  AlertTriangle, Bell, FileText, ChevronRight,
   Snowflake, Package, Brush,
 } from "lucide-react";
 

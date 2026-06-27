@@ -837,7 +837,7 @@ export default function CierreTurno() {
                     </tr>
                   </thead>
                   <tbody>
-                    {resultado.cuentas.map((c, i) => {
+                    {resultado.cuentas.map((c) => {
                       const col = METODO_COLOR[c.metodo] ?? METODO_COLOR.Efectivo;
                       return (
                         <tr

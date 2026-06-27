@@ -78,7 +78,10 @@ pub fn run() {
                 .unwrap()
                 .to_path_buf();
 
-            let python  = raiz.join("runtime").join("python").join("python.exe");
+            let python = raiz
+                .join("runtime")
+                .join("python")
+                .join("python.exe");
             let backend = raiz.join("runtime").join("backend");
 
             // ── LOG DE DEBUG ──────────────────────────────────────
